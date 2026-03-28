@@ -9,6 +9,7 @@ export interface UserProfile {
   email: string;
   displayName: string;
   role: UserRole;
+  hourlyRate?: number;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

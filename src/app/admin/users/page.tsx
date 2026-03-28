@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { getAllUsers, updateUserRole } from "@/lib/firebase/firestore";
+import { getAllUsers, updateUserRole, updateUserHourlyRate } from "@/lib/firebase/firestore";
 import { UserProfile } from "@/lib/types";
 
 export default function AdminUsersPage() {
@@ -12,6 +12,8 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [editingRate, setEditingRate] = useState<string | null>(null);
+  const [rateInput, setRateInput] = useState("");
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) router.push("/");
@@ -42,6 +44,22 @@ export default function AdminUsersPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleEditRate = (u: UserProfile) => {
+    setEditingRate(u.uid);
+    setRateInput(u.hourlyRate?.toString() || "");
+  };
+
+  const handleSaveRate = async (uid: string) => {
+    const rate = parseInt(rateInput);
+    if (!isNaN(rate) && rate >= 0) {
+      await updateUserHourlyRate(uid, rate);
+      setUsers((prev) =>
+        prev.map((u) => (u.uid === uid ? { ...u, hourlyRate: rate } : u))
+      );
+    }
+    setEditingRate(null);
+  };
+
   if (loading || dataLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -52,6 +70,62 @@ export default function AdminUsersPage() {
 
   const admins = users.filter((u) => u.role === "admin");
   const facilitators = users.filter((u) => u.role === "facilitator");
+
+  const UserRow = ({ u, showRate }: { u: UserProfile; showRate?: boolean }) => (
+    <div key={u.uid} className="flex items-center justify-between px-4 py-3">
+      <div className="flex-1 min-w-0">
+        <div className="font-medium text-gray-800">{u.displayName}</div>
+        <div className="text-xs text-gray-500">{u.email}</div>
+      </div>
+      {showRate && (
+        <div className="flex items-center gap-2 mr-3">
+          {editingRate === u.uid ? (
+            <div className="flex items-center gap-1">
+              <input
+                type="number"
+                value={rateInput}
+                onChange={(e) => setRateInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSaveRate(u.uid)}
+                className="w-20 text-sm border border-gray-300 rounded px-2 py-1 text-right"
+                autoFocus
+              />
+              <span className="text-xs text-gray-500">円/h</span>
+              <button
+                onClick={() => handleSaveRate(u.uid)}
+                className="text-xs text-blue-600 hover:text-blue-800 ml-1"
+              >
+                保存
+              </button>
+              <button
+                onClick={() => setEditingRate(null)}
+                className="text-xs text-gray-400 hover:text-gray-600"
+              >
+                取消
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => handleEditRate(u)}
+              className="text-sm text-gray-500 hover:text-blue-600 transition-colors"
+            >
+              {u.hourlyRate ? `¥${u.hourlyRate.toLocaleString()}/h` : "時給未設定"}
+            </button>
+          )}
+        </div>
+      )}
+      <button
+        onClick={() => handleToggleRole(u)}
+        disabled={u.uid === user?.uid}
+        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors shrink-0 ${
+          u.role === "admin"
+            ? "bg-purple-100 text-purple-700"
+            : "bg-gray-100 text-gray-600 hover:bg-purple-50 hover:text-purple-600"
+        } ${u.uid === user?.uid ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+      >
+        {u.role === "admin" ? "管理者" : "→ 管理者に変更"}
+      </button>
+    </div>
+  );
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
@@ -84,21 +158,7 @@ export default function AdminUsersPage() {
       <h2 className="text-sm font-medium text-gray-500 mb-2">管理者（{admins.length}名）</h2>
       <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 mb-6">
         {admins.map((u) => (
-          <div key={u.uid} className="flex items-center justify-between px-4 py-3">
-            <div>
-              <div className="font-medium text-gray-800">{u.displayName}</div>
-              <div className="text-xs text-gray-500">{u.email}</div>
-            </div>
-            <button
-              onClick={() => handleToggleRole(u)}
-              disabled={u.uid === user?.uid}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors bg-purple-100 text-purple-700 ${
-                u.uid === user?.uid ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
-              }`}
-            >
-              管理者
-            </button>
-          </div>
+          <UserRow key={u.uid} u={u} />
         ))}
       </div>
 
@@ -106,18 +166,7 @@ export default function AdminUsersPage() {
       <h2 className="text-sm font-medium text-gray-500 mb-2">ファシリテーター（{facilitators.length}名）</h2>
       <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
         {facilitators.map((u) => (
-          <div key={u.uid} className="flex items-center justify-between px-4 py-3">
-            <div>
-              <div className="font-medium text-gray-800">{u.displayName}</div>
-              <div className="text-xs text-gray-500">{u.email}</div>
-            </div>
-            <button
-              onClick={() => handleToggleRole(u)}
-              className="px-3 py-1 rounded-full text-xs font-medium transition-colors bg-gray-100 text-gray-600 hover:bg-purple-50 hover:text-purple-600 cursor-pointer"
-            >
-              ファシリテーター → 管理者に変更
-            </button>
-          </div>
+          <UserRow key={u.uid} u={u} showRate />
         ))}
         {facilitators.length === 0 && (
           <div className="px-4 py-8 text-center text-gray-400">ファシリテーターがいません</div>

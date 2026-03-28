@@ -125,12 +125,20 @@ export default function AdminPage() {
                   </>
                 )}
                 {(entry.schedule?.status === "shift_created" || entry.schedule?.status === "published") && (
-                  <Link
-                    href={`/admin/shifts/${entry.monthId}`}
-                    className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50"
-                  >
-                    シフト確認
-                  </Link>
+                  <>
+                    <Link
+                      href={`/admin/shifts/${entry.monthId}`}
+                      className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50"
+                    >
+                      シフト確認
+                    </Link>
+                    <Link
+                      href={`/admin/payroll/${entry.monthId}`}
+                      className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50"
+                    >
+                      支払い
+                    </Link>
+                  </>
                 )}
               </div>
             </div>

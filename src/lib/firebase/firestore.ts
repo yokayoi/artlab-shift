@@ -40,6 +40,10 @@ export async function updateUserRole(uid: string, role: "admin" | "facilitator")
   await updateDoc(doc(getFirebaseDb(), "users", uid), { role, updatedAt: Timestamp.now() });
 }
 
+export async function updateUserHourlyRate(uid: string, hourlyRate: number) {
+  await updateDoc(doc(getFirebaseDb(), "users", uid), { hourlyRate, updatedAt: Timestamp.now() });
+}
+
 export async function getAllUsers(): Promise<UserProfile[]> {
   const snap = await getDocs(collection(getFirebaseDb(), "users"));
   return snap.docs.map((d) => ({ uid: d.id, ...d.data() } as UserProfile));
