@@ -74,49 +74,44 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-200">
-              <th className="text-left px-3 py-2 font-medium text-gray-600 sticky left-0 bg-white min-w-[100px]">
-                名前
+              <th className="text-left px-3 py-2 font-medium text-gray-600 sticky left-0 bg-white min-w-[120px]">
+                日時
               </th>
-              {slotKeys.map((sk) => (
-                <th key={sk.key} className="px-2 py-2 font-medium text-gray-500 text-center whitespace-nowrap text-xs">
-                  {sk.label}
+              <th className="px-2 py-2 font-medium text-blue-700 text-center whitespace-nowrap bg-blue-50 min-w-[48px]">
+                計
+              </th>
+              {availabilities.map((avail) => (
+                <th key={avail.id} className="px-2 py-2 font-medium text-gray-500 text-center whitespace-nowrap text-xs min-w-[60px]">
+                  {avail.facilitatorName}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {/* Summary row */}
-            <tr className="border-b border-gray-200 bg-blue-50">
-              <td className="px-3 py-2 font-medium text-blue-700 sticky left-0 bg-blue-50">
-                可能人数
-              </td>
-              {slotKeys.map((sk) => {
-                const count = availabilities.filter((a) => a.slots[sk.key]).length;
-                return (
-                  <td key={sk.key} className={`px-2 py-2 text-center font-bold ${
+            {slotKeys.map((sk) => {
+              const count = availabilities.filter((a) => a.slots[sk.key]).length;
+              return (
+                <tr key={sk.key} className="border-b border-gray-100">
+                  <td className="px-3 py-2 text-gray-700 sticky left-0 bg-white whitespace-nowrap text-xs font-medium">
+                    {sk.label}
+                  </td>
+                  <td className={`px-2 py-2 text-center font-bold bg-blue-50 ${
                     count === 0 ? "text-red-600" : count <= 2 ? "text-orange-600" : "text-blue-700"
                   }`}>
                     {count}
                   </td>
-                );
-              })}
-            </tr>
-            {availabilities.map((avail) => (
-              <tr key={avail.id} className="border-b border-gray-100">
-                <td className="px-3 py-2 text-gray-700 sticky left-0 bg-white">
-                  {avail.facilitatorName}
-                </td>
-                {slotKeys.map((sk) => (
-                  <td key={sk.key} className="px-2 py-2 text-center">
-                    {avail.slots[sk.key] ? (
-                      <span className="text-blue-600 font-bold">○</span>
-                    ) : (
-                      <span className="text-gray-300">—</span>
-                    )}
-                  </td>
-                ))}
-              </tr>
-            ))}
+                  {availabilities.map((avail) => (
+                    <td key={avail.id} className="px-2 py-2 text-center">
+                      {avail.slots[sk.key] ? (
+                        <span className="text-blue-600 font-bold">○</span>
+                      ) : (
+                        <span className="text-gray-300">—</span>
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
