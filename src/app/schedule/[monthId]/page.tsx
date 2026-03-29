@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { getSchedule, getAvailability, saveAvailability, getShift } from "@/lib/firebase/firestore";
 import { MonthSchedule, Availability, ShiftAssignment } from "@/lib/types";
-import { getSlotKey, parseMonthId, formatMonthId, formatDateShort } from "@/lib/utils/dateCalc";
+import { getSlotKey, parseMonthId, formatMonthId, formatDateShort, formatDeadline, isDeadlinePassed } from "@/lib/utils/dateCalc";
 import { CLASS_TYPE_COLORS, STATUS_LABELS } from "@/lib/utils/constants";
 
 export default function FacilitatorSchedulePage({ params }: { params: Promise<{ monthId: string }> }) {
@@ -73,7 +73,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
   if (loading || dataLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" />
       </div>
     );
   }
@@ -82,6 +82,15 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
+      {/* Calendar Link */}
+      <div className="flex justify-end mb-2">
+        <button
+          onClick={() => router.push("/schedule/calendar")}
+          className="text-xs text-brand-600 hover:text-brand-700"
+        >
+          年間カレンダー
+        </button>
+      </div>
       {/* Month Navigation */}
       <div className="flex items-center justify-between mb-6">
         <button
@@ -111,13 +120,22 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
         </div>
       ) : (
         <>
-          {/* Status Badge */}
+          {/* Status Badge & Deadline */}
           <div className="text-center mb-6">
             <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-              schedule.status === "collecting" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"
+              schedule.status === "collecting" ? "bg-brand-100 text-brand-700" : "bg-green-100 text-green-700"
             }`}>
               {STATUS_LABELS[schedule.status]}
             </span>
+            {schedule.status === "collecting" && (
+              <div className="mt-2 text-sm">
+                {isDeadlinePassed(year, month) ? (
+                  <span className="text-red-600 font-medium">締め切りを過ぎています</span>
+                ) : (
+                  <span className="text-gray-500">回答締め切り: <span className="font-medium">{formatDeadline(year, month)}</span></span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Schedule Grid */}
@@ -159,7 +177,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                         {isPublished && assignedNames ? (
                           <div className="mt-1">
                             {isAssignedToMe ? (
-                              <div className="w-8 h-8 mx-auto rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold">
+                              <div className="w-8 h-8 mx-auto rounded-full bg-brand-500 text-white flex items-center justify-center text-xs font-bold">
                                 出
                               </div>
                             ) : (
@@ -173,7 +191,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                             onClick={() => toggleSlot(key)}
                             className={`w-10 h-10 mx-auto rounded-full border-2 flex items-center justify-center text-sm font-bold transition-all ${
                               isAvailable
-                                ? "bg-blue-500 border-blue-500 text-white"
+                                ? "bg-brand-500 border-brand-500 text-white"
                                 : "bg-white border-gray-300 text-gray-300"
                             }`}
                           >
@@ -194,7 +212,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
               <button
                 onClick={handleSubmit}
                 disabled={saving}
-                className="w-full py-3 rounded-xl font-medium text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:bg-gray-300 transition-colors"
+                className="w-full py-3 rounded-xl font-medium text-white bg-brand-600 hover:bg-brand-700 active:bg-brand-800 disabled:bg-gray-300 transition-colors"
               >
                 {saving ? "送信中..." : submitted ? "回答を更新する" : "回答を送信する"}
               </button>
@@ -206,8 +224,8 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
 
           {/* Published Shift Summary */}
           {isPublished && shift && (
-            <div className="mt-6 bg-blue-50 rounded-xl p-4">
-              <h3 className="font-medium text-blue-800 mb-2">あなたのシフト</h3>
+            <div className="mt-6 bg-brand-50 rounded-xl p-4">
+              <h3 className="font-medium text-brand-800 mb-2">あなたのシフト</h3>
               {schedule.days.flatMap((day) =>
                 day.slots
                   .filter((slot) => {
@@ -215,7 +233,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                     return shift.assignments?.[key]?.includes(user?.uid || "");
                   })
                   .map((slot) => (
-                    <div key={getSlotKey(day.date, slot.time)} className="text-sm text-blue-700">
+                    <div key={getSlotKey(day.date, slot.time)} className="text-sm text-brand-700">
                       {formatDateShort(day.date)} {slot.time} {slot.classType || ""}
                     </div>
                   ))

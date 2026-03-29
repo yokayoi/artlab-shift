@@ -58,7 +58,7 @@ export default function AdminPage() {
   if (loading || dataLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" />
       </div>
     );
   }
@@ -67,7 +67,7 @@ export default function AdminPage() {
     <div className="max-w-2xl mx-auto px-4 py-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold text-gray-800">管理ダッシュボード</h1>
-        <Link href="/admin/users" className="text-sm text-blue-600 hover:text-blue-800">
+        <Link href="/admin/users" className="text-sm text-brand-600 hover:text-brand-800">
           ユーザー管理
         </Link>
       </div>
@@ -95,7 +95,7 @@ export default function AdminPage() {
                 {!entry.schedule && (
                   <Link
                     href={`/admin/schedule/${entry.monthId}`}
-                    className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
+                    className="px-3 py-1.5 bg-brand-600 text-white text-sm rounded-lg hover:bg-brand-700"
                   >
                     作成
                   </Link>
@@ -103,7 +103,7 @@ export default function AdminPage() {
                 {entry.schedule?.status === "draft" && (
                   <Link
                     href={`/admin/schedule/${entry.monthId}`}
-                    className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
+                    className="px-3 py-1.5 bg-brand-600 text-white text-sm rounded-lg hover:bg-brand-700"
                   >
                     設定
                   </Link>
@@ -118,7 +118,7 @@ export default function AdminPage() {
                     </Link>
                     <Link
                       href={`/admin/shifts/${entry.monthId}`}
-                      className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
+                      className="px-3 py-1.5 bg-brand-600 text-white text-sm rounded-lg hover:bg-brand-700"
                     >
                       シフト作成
                     </Link>

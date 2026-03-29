@@ -38,7 +38,7 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
   if (loading || dataLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" />
       </div>
     );
   }
@@ -60,7 +60,7 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
-      <button onClick={() => router.push("/admin")} className="text-sm text-blue-600 mb-4 inline-block">
+      <button onClick={() => router.push("/admin")} className="text-sm text-brand-600 mb-4 inline-block">
         ← ダッシュボード
       </button>
       <div className="flex items-center justify-between mb-6">
@@ -77,7 +77,7 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
               <th className="text-left px-3 py-2 font-medium text-gray-600 sticky left-0 bg-white min-w-[120px]">
                 日時
               </th>
-              <th className="px-2 py-2 font-medium text-blue-700 text-center whitespace-nowrap bg-blue-50 min-w-[48px]">
+              <th className="px-2 py-2 font-medium text-brand-700 text-center whitespace-nowrap bg-brand-50 min-w-[48px]">
                 計
               </th>
               {availabilities.map((avail) => (
@@ -95,15 +95,15 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
                   <td className="px-3 py-2 text-gray-700 sticky left-0 bg-white whitespace-nowrap text-xs font-medium">
                     {sk.label}
                   </td>
-                  <td className={`px-2 py-2 text-center font-bold bg-blue-50 ${
-                    count === 0 ? "text-red-600" : count <= 2 ? "text-orange-600" : "text-blue-700"
+                  <td className={`px-2 py-2 text-center font-bold bg-brand-50 ${
+                    count === 0 ? "text-red-600" : count <= 2 ? "text-orange-600" : "text-brand-700"
                   }`}>
                     {count}
                   </td>
                   {availabilities.map((avail) => (
                     <td key={avail.id} className="px-2 py-2 text-center">
                       {avail.slots[sk.key] ? (
-                        <span className="text-blue-600 font-bold">○</span>
+                        <span className="text-brand-600 font-bold">○</span>
                       ) : (
                         <span className="text-gray-300">—</span>
                       )}
@@ -119,7 +119,7 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
       <div className="mt-6">
         <Link
           href={`/admin/shifts/${monthId}`}
-          className="inline-block px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors"
+          className="inline-block px-6 py-3 bg-brand-600 text-white rounded-xl font-medium hover:bg-brand-700 transition-colors"
         >
           シフト作成へ進む
         </Link>

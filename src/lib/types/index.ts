@@ -8,11 +8,16 @@ export interface UserProfile {
   uid: string;
   email: string;
   displayName: string;
+  nickname?: string;
+  photoURL?: string;
   role: UserRole;
   hourlyRate?: number;
+  classCount?: number;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
+
+export type FacilitatorTier = "none" | "bronze" | "silver" | "gold" | "platinum";
 
 export interface SlotDefinition {
   time: string;

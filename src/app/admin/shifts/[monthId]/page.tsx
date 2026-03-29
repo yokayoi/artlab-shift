@@ -87,7 +87,7 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
   if (loading || dataLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" />
       </div>
     );
   }
@@ -96,7 +96,7 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
-      <button onClick={() => router.push("/admin")} className="text-sm text-blue-600 mb-4 inline-block">
+      <button onClick={() => router.push("/admin")} className="text-sm text-brand-600 mb-4 inline-block">
         ← ダッシュボード
       </button>
       <h1 className="text-xl font-bold text-gray-800 mb-6">
@@ -148,8 +148,8 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
                                 }
                                 className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
                                   isAssigned
-                                    ? "bg-blue-500 border-blue-500 text-white"
-                                    : "bg-white border-gray-300 text-gray-600 hover:border-blue-300"
+                                    ? "bg-brand-500 border-brand-500 text-white"
+                                    : "bg-white border-gray-300 text-gray-600 hover:border-brand-300"
                                 }`}
                               >
                                 {avail.facilitatorName}

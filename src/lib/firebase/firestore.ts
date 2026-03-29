@@ -3,12 +3,14 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  deleteDoc,
   collection,
   query,
   where,
   getDocs,
   Timestamp,
   onSnapshot,
+  increment,
 } from "firebase/firestore";
 import { getFirebaseDb } from "./config";
 import {
@@ -42,6 +44,18 @@ export async function updateUserRole(uid: string, role: "admin" | "facilitator")
 
 export async function updateUserHourlyRate(uid: string, hourlyRate: number) {
   await updateDoc(doc(getFirebaseDb(), "users", uid), { hourlyRate, updatedAt: Timestamp.now() });
+}
+
+export async function updateUserProfile(uid: string, data: { nickname?: string; photoURL?: string }) {
+  await updateDoc(doc(getFirebaseDb(), "users", uid), { ...data, updatedAt: Timestamp.now() });
+}
+
+export async function deleteUserDoc(uid: string) {
+  await deleteDoc(doc(getFirebaseDb(), "users", uid));
+}
+
+export async function updateUserClassCount(uid: string, count: number) {
+  await updateDoc(doc(getFirebaseDb(), "users", uid), { classCount: increment(count), updatedAt: Timestamp.now() });
 }
 
 export async function getAllUsers(): Promise<UserProfile[]> {

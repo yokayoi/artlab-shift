@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { getAllUsers, updateUserRole, updateUserHourlyRate } from "@/lib/firebase/firestore";
+import { getAllUsers, updateUserRole, updateUserHourlyRate, deleteUserDoc, updateUserProfile } from "@/lib/firebase/firestore";
 import { UserProfile } from "@/lib/types";
+import { getTier } from "@/lib/utils/constants";
 
 export default function AdminUsersPage() {
   const { user, isAdmin, loading } = useAuth();
@@ -14,6 +15,8 @@ export default function AdminUsersPage() {
   const [copied, setCopied] = useState(false);
   const [editingRate, setEditingRate] = useState<string | null>(null);
   const [rateInput, setRateInput] = useState("");
+  const [editingNickname, setEditingNickname] = useState<string | null>(null);
+  const [nicknameInput, setNicknameInput] = useState("");
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) router.push("/");
@@ -60,10 +63,30 @@ export default function AdminUsersPage() {
     setEditingRate(null);
   };
 
+  const handleEditNickname = (u: UserProfile) => {
+    setEditingNickname(u.uid);
+    setNicknameInput(u.nickname || "");
+  };
+
+  const handleSaveNickname = async (uid: string) => {
+    await updateUserProfile(uid, { nickname: nicknameInput });
+    setUsers((prev) =>
+      prev.map((u) => (u.uid === uid ? { ...u, nickname: nicknameInput } : u))
+    );
+    setEditingNickname(null);
+  };
+
+  const handleDeleteUser = async (targetUser: UserProfile) => {
+    if (targetUser.uid === user?.uid) return;
+    if (!confirm(`${targetUser.displayName} を削除しますか？この操作は取り消せません。`)) return;
+    await deleteUserDoc(targetUser.uid);
+    setUsers((prev) => prev.filter((u) => u.uid !== targetUser.uid));
+  };
+
   if (loading || dataLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" />
       </div>
     );
   }
@@ -71,83 +94,125 @@ export default function AdminUsersPage() {
   const admins = users.filter((u) => u.role === "admin");
   const facilitators = users.filter((u) => u.role === "facilitator");
 
-  const UserRow = ({ u, showRate }: { u: UserProfile; showRate?: boolean }) => (
-    <div key={u.uid} className="flex items-center justify-between px-4 py-3">
-      <div className="flex-1 min-w-0">
-        <div className="font-medium text-gray-800">{u.displayName}</div>
-        <div className="text-xs text-gray-500">{u.email}</div>
-      </div>
-      {showRate && (
-        <div className="flex items-center gap-2 mr-3">
-          {editingRate === u.uid ? (
-            <div className="flex items-center gap-1">
-              <input
-                type="number"
-                value={rateInput}
-                onChange={(e) => setRateInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSaveRate(u.uid)}
-                className="w-20 text-sm border border-gray-300 rounded px-2 py-1 text-right"
-                autoFocus
-              />
-              <span className="text-xs text-gray-500">円/h</span>
-              <button
-                onClick={() => handleSaveRate(u.uid)}
-                className="text-xs text-blue-600 hover:text-blue-800 ml-1"
-              >
-                保存
-              </button>
-              <button
-                onClick={() => setEditingRate(null)}
-                className="text-xs text-gray-400 hover:text-gray-600"
-              >
-                取消
-              </button>
+  const UserRow = ({ u, showRate }: { u: UserProfile; showRate?: boolean }) => {
+    const tier = getTier(u.classCount || 0);
+    return (
+      <div key={u.uid} className="px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="w-8 h-8 rounded-full overflow-hidden bg-brand-100 flex items-center justify-center text-brand-700 font-medium text-sm shrink-0">
+              {u.photoURL ? (
+                <img src={u.photoURL} alt="" className="w-full h-full object-cover" />
+              ) : (
+                (u.nickname || u.displayName)?.[0] || "?"
+              )}
             </div>
-          ) : (
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-gray-800">{u.nickname || u.displayName}</span>
+                {tier && <span className="text-xs">{tier.emoji}</span>}
+              </div>
+              <div className="text-xs text-gray-500">{u.email}</div>
+              {u.nickname && (
+                <div className="text-xs text-gray-400">{u.displayName}</div>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
             <button
-              onClick={() => handleEditRate(u)}
-              className="text-sm text-gray-500 hover:text-blue-600 transition-colors"
+              onClick={() => handleToggleRole(u)}
+              disabled={u.uid === user?.uid}
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                u.role === "admin"
+                  ? "bg-purple-100 text-purple-700"
+                  : "bg-gray-100 text-gray-600 hover:bg-purple-50 hover:text-purple-600"
+              } ${u.uid === user?.uid ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
             >
-              {u.hourlyRate ? `¥${u.hourlyRate.toLocaleString()}/h` : "時給未設定"}
+              {u.role === "admin" ? "管理者" : "→ 管理者"}
             </button>
-          )}
+            {u.uid !== user?.uid && (
+              <button
+                onClick={() => handleDeleteUser(u)}
+                className="text-xs text-gray-400 hover:text-red-500 transition-colors"
+              >
+                削除
+              </button>
+            )}
+          </div>
         </div>
-      )}
-      <button
-        onClick={() => handleToggleRole(u)}
-        disabled={u.uid === user?.uid}
-        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors shrink-0 ${
-          u.role === "admin"
-            ? "bg-purple-100 text-purple-700"
-            : "bg-gray-100 text-gray-600 hover:bg-purple-50 hover:text-purple-600"
-        } ${u.uid === user?.uid ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-      >
-        {u.role === "admin" ? "管理者" : "→ 管理者に変更"}
-      </button>
-    </div>
-  );
+        {/* Editable fields for facilitators */}
+        {showRate && (
+          <div className="mt-2 ml-11 flex flex-wrap items-center gap-3 text-sm">
+            {/* Nickname edit */}
+            {editingNickname === u.uid ? (
+              <div className="flex items-center gap-1">
+                <input
+                  type="text"
+                  value={nicknameInput}
+                  onChange={(e) => setNicknameInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSaveNickname(u.uid)}
+                  placeholder="ニックネーム"
+                  className="w-24 text-sm border border-gray-300 rounded px-2 py-1"
+                  autoFocus
+                />
+                <button onClick={() => handleSaveNickname(u.uid)} className="text-xs text-brand-600">保存</button>
+                <button onClick={() => setEditingNickname(null)} className="text-xs text-gray-400">取消</button>
+              </div>
+            ) : (
+              <button onClick={() => handleEditNickname(u)} className="text-xs text-gray-500 hover:text-brand-600">
+                {u.nickname ? `名前: ${u.nickname}` : "名前設定"}
+              </button>
+            )}
+            <span className="text-gray-300">|</span>
+            {/* Rate edit */}
+            {editingRate === u.uid ? (
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  value={rateInput}
+                  onChange={(e) => setRateInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSaveRate(u.uid)}
+                  className="w-20 text-sm border border-gray-300 rounded px-2 py-1 text-right"
+                  autoFocus
+                />
+                <span className="text-xs text-gray-500">円/h</span>
+                <button onClick={() => handleSaveRate(u.uid)} className="text-xs text-brand-600">保存</button>
+                <button onClick={() => setEditingRate(null)} className="text-xs text-gray-400">取消</button>
+              </div>
+            ) : (
+              <button onClick={() => handleEditRate(u)} className="text-xs text-gray-500 hover:text-brand-600">
+                {u.hourlyRate ? `¥${u.hourlyRate.toLocaleString()}/h` : "時給未設定"}
+              </button>
+            )}
+            <span className="text-gray-300">|</span>
+            <span className="text-xs text-gray-400">{u.classCount || 0}クラス</span>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
-      <button onClick={() => router.push("/admin")} className="text-sm text-blue-600 mb-4 inline-block">
+      <button onClick={() => router.push("/admin")} className="text-sm text-brand-600 mb-4 inline-block">
         ← ダッシュボード
       </button>
       <h1 className="text-xl font-bold text-gray-800 mb-6">ユーザー管理</h1>
 
       {/* Invite Link */}
-      <div className="bg-blue-50 rounded-xl border border-blue-200 p-4 mb-6">
-        <p className="text-sm text-blue-800 mb-2">
+      <div className="bg-brand-50 rounded-xl border border-brand-200 p-4 mb-6">
+        <p className="text-sm text-brand-800 mb-2">
           下記リンクを共有して、ファシリテーターを招待できます。Googleログイン後に自動登録されます。
         </p>
         <div className="flex items-center gap-2">
           <input
             readOnly
             value={typeof window !== "undefined" ? `${window.location.origin}/login` : ""}
-            className="flex-1 text-sm bg-white border border-blue-200 rounded-lg px-3 py-2 text-gray-700"
+            className="flex-1 text-sm bg-white border border-brand-200 rounded-lg px-3 py-2 text-gray-700"
           />
           <button
             onClick={handleCopyInviteLink}
-            className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap"
+            className="px-4 py-2 bg-brand-600 text-white text-sm rounded-lg hover:bg-brand-700 transition-colors whitespace-nowrap"
           >
             {copied ? "コピー済み" : "コピー"}
           </button>

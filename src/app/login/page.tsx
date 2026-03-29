@@ -26,13 +26,13 @@ export default function LoginPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-50 to-pink-100 px-4">
       <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-sm text-center">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-800 mb-1">アートデザインラボ</h1>

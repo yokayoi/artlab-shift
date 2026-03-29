@@ -51,7 +51,7 @@ export default function PayrollPage({ params }: { params: Promise<{ monthId: str
   if (loading || dataLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" />
       </div>
     );
   }
@@ -59,7 +59,7 @@ export default function PayrollPage({ params }: { params: Promise<{ monthId: str
   if (!schedule || !shift) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-6">
-        <button onClick={() => router.push("/admin")} className="text-sm text-blue-600 mb-4 inline-block">
+        <button onClick={() => router.push("/admin")} className="text-sm text-brand-600 mb-4 inline-block">
           ← ダッシュボード
         </button>
         <div className="text-center py-12 text-gray-400">シフトデータがありません</div>
@@ -114,7 +114,7 @@ export default function PayrollPage({ params }: { params: Promise<{ monthId: str
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
-      <button onClick={() => router.push("/admin")} className="text-sm text-blue-600 mb-4 inline-block">
+      <button onClick={() => router.push("/admin")} className="text-sm text-brand-600 mb-4 inline-block">
         ← ダッシュボード
       </button>
       <h1 className="text-xl font-bold text-gray-800 mb-6">
@@ -132,7 +132,7 @@ export default function PayrollPage({ params }: { params: Promise<{ monthId: str
           <div className="text-xs text-gray-500">総スロット数</div>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
-          <div className="text-2xl font-bold text-blue-700">¥{grandTotal.toLocaleString()}</div>
+          <div className="text-2xl font-bold text-brand-700">¥{grandTotal.toLocaleString()}</div>
           <div className="text-xs text-gray-500">合計支払額</div>
         </div>
       </div>
@@ -148,7 +148,7 @@ export default function PayrollPage({ params }: { params: Promise<{ monthId: str
                   {p.hourlyRate > 0 ? `¥${p.hourlyRate.toLocaleString()}/h` : "時給未設定"} × {p.slotCount}コマ（{p.totalMinutes}分）
                 </div>
               </div>
-              <div className={`text-lg font-bold ${p.hourlyRate > 0 ? "text-blue-700" : "text-red-500"}`}>
+              <div className={`text-lg font-bold ${p.hourlyRate > 0 ? "text-brand-700" : "text-red-500"}`}>
                 {p.hourlyRate > 0 ? `¥${p.totalPay.toLocaleString()}` : "要設定"}
               </div>
             </div>
@@ -171,7 +171,7 @@ export default function PayrollPage({ params }: { params: Promise<{ monthId: str
             時給未設定のファシリテーターがいます。
             <button
               onClick={() => router.push("/admin/users")}
-              className="text-blue-600 hover:underline ml-1"
+              className="text-brand-600 hover:underline ml-1"
             >
               ユーザー管理で時給を設定
             </button>
