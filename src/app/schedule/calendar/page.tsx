@@ -43,6 +43,7 @@ export default function CalendarPage() {
           const monthId = formatMonthId(currentYear, month);
           const today = new Date();
           const isCurrentMonth = today.getFullYear() === currentYear && today.getMonth() + 1 === month;
+          const isPastMonth = new Date(currentYear, month, 0) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
           return (
             <Link
@@ -50,7 +51,7 @@ export default function CalendarPage() {
               href={`/schedule/${monthId}`}
               className={`bg-white rounded-xl border p-3 hover:shadow-md transition-shadow ${
                 isCurrentMonth ? "border-brand-300 ring-1 ring-brand-200" : "border-gray-200"
-              }`}
+              } ${isPastMonth ? "opacity-50" : ""}`}
             >
               <div className={`text-sm font-bold mb-2 ${isCurrentMonth ? "text-brand-700" : "text-gray-700"}`}>
                 {month}月
@@ -68,11 +69,19 @@ export default function CalendarPage() {
                   const date = new Date(currentYear, month - 1, day);
                   const isSun = date.getDay() === 0;
                   const isSat = date.getDay() === 6;
+                  const isToday = today.getFullYear() === currentYear && today.getMonth() + 1 === month && today.getDate() === day;
+                  const isPast = date < new Date(today.getFullYear(), today.getMonth(), today.getDate());
                   return (
                     <div
                       key={day}
                       className={`text-[10px] leading-5 rounded-full ${
-                        isClassDay
+                        isToday
+                          ? "bg-red-500 text-white font-bold"
+                          : isPast && isClassDay
+                          ? "bg-gray-300 text-white"
+                          : isPast
+                          ? "text-gray-300"
+                          : isClassDay
                           ? "bg-brand-500 text-white font-bold"
                           : isSun
                           ? "text-red-400"
@@ -87,7 +96,7 @@ export default function CalendarPage() {
                 })}
               </div>
               {classDays.length > 0 && (
-                <div className="mt-2 text-[10px] text-gray-500">
+                <div className={`mt-2 text-[10px] ${isPastMonth ? "text-gray-400" : "text-gray-500"}`}>
                   {classDays.map((d) => `${parseInt(d.date.split("-")[2])}日`).join("・")}
                 </div>
               )}

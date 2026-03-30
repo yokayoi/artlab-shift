@@ -59,3 +59,13 @@ export interface ShiftAssignment {
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
+
+export interface Announcement {
+  id: string;
+  title: string;
+  body: string;
+  createdBy: string;
+  active: boolean;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}

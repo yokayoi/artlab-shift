@@ -20,6 +20,7 @@ import {
   ShiftAssignment,
   MonthStatus,
   DaySchedule,
+  Announcement,
 } from "../types";
 
 // ===== Users =====
@@ -167,4 +168,39 @@ export function onShiftChange(monthId: string, callback: (shift: ShiftAssignment
   return onSnapshot(doc(getFirebaseDb(), "shifts", monthId), (snap) => {
     callback(snap.exists() ? ({ id: snap.id, ...snap.data() } as ShiftAssignment) : null);
   });
+}
+
+// ===== Announcements =====
+
+export async function getActiveAnnouncements(): Promise<Announcement[]> {
+  const q = query(collection(getFirebaseDb(), "announcements"), where("active", "==", true));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Announcement));
+}
+
+export async function getAllAnnouncements(): Promise<Announcement[]> {
+  const snap = await getDocs(collection(getFirebaseDb(), "announcements"));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Announcement));
+}
+
+export async function createAnnouncement(title: string, body: string, createdBy: string) {
+  const now = Timestamp.now();
+  const ref = doc(collection(getFirebaseDb(), "announcements"));
+  await setDoc(ref, { title, body, createdBy, active: true, createdAt: now, updatedAt: now });
+}
+
+export async function toggleAnnouncement(id: string, active: boolean) {
+  await updateDoc(doc(getFirebaseDb(), "announcements", id), { active, updatedAt: Timestamp.now() });
+}
+
+export async function deleteAnnouncement(id: string) {
+  await deleteDoc(doc(getFirebaseDb(), "announcements", id));
+}
+
+// ===== Schedule Queries =====
+
+export async function getCollectingSchedules(): Promise<MonthSchedule[]> {
+  const q = query(collection(getFirebaseDb(), "schedules"), where("status", "==", "collecting"));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as MonthSchedule));
 }

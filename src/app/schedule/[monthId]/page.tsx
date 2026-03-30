@@ -3,8 +3,8 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { getSchedule, getAvailability, saveAvailability, getShift } from "@/lib/firebase/firestore";
-import { MonthSchedule, Availability, ShiftAssignment } from "@/lib/types";
+import { getSchedule, getAvailability, saveAvailability, getShift, getActiveAnnouncements, getCollectingSchedules } from "@/lib/firebase/firestore";
+import { MonthSchedule, Availability, ShiftAssignment, Announcement } from "@/lib/types";
 import { getSlotKey, parseMonthId, formatMonthId, formatDateShort, formatDeadline, isDeadlinePassed } from "@/lib/utils/dateCalc";
 import { CLASS_TYPE_COLORS, STATUS_LABELS } from "@/lib/utils/constants";
 
@@ -18,6 +18,8 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [collectingMonths, setCollectingMonths] = useState<string[]>([]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -35,6 +37,16 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
       ]);
       setSchedule(sched);
       setShift(shiftData);
+      try {
+        const [anns, collectingScheds] = await Promise.all([
+          getActiveAnnouncements(),
+          getCollectingSchedules(),
+        ]);
+        setAnnouncements(anns);
+        setCollectingMonths(collectingScheds.map((s) => s.id).filter((id) => id !== monthId));
+      } catch {
+        // announcements collection may not have rules deployed yet
+      }
       if (avail) {
         setMyAvailability(avail.slots);
         setSubmitted(true);
@@ -91,6 +103,40 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
           年間カレンダー
         </button>
       </div>
+
+      {/* Announcements */}
+      {announcements.length > 0 && (
+        <div className="mb-4 space-y-2">
+          {announcements.map((ann) => (
+            <div key={ann.id} className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+              <div className="text-sm font-medium text-amber-800">{ann.title}</div>
+              {ann.body && <p className="text-sm text-amber-700 mt-1 whitespace-pre-wrap">{ann.body}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Collecting Month Banner */}
+      {collectingMonths.length > 0 && (
+        <div className="mb-4 space-y-2">
+          {collectingMonths.map((cmId) => {
+            const { year: cy, month: cm } = parseMonthId(cmId);
+            return (
+              <button
+                key={cmId}
+                onClick={() => router.push(`/schedule/${cmId}`)}
+                className="w-full bg-brand-50 border border-brand-200 rounded-xl px-4 py-3 text-left hover:bg-brand-100 transition-colors"
+              >
+                <span className="text-sm text-brand-700">
+                  {cy}年{cm}月のシフト希望を受付中です
+                </span>
+                <span className="text-xs text-brand-500 ml-2">&rarr; 回答する</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Month Navigation */}
       <div className="flex items-center justify-between mb-6">
         <button

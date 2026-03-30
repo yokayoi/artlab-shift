@@ -18,7 +18,7 @@ export default function Header() {
   const tier = getTier(profile?.classCount || 0);
 
   return (
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+    <header className={`border-b sticky top-0 z-50 ${isOnAdminPage ? "bg-gray-50 border-gray-300" : "bg-white border-gray-200"}`}>
       <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link href={isAdmin ? "/admin" : "/schedule"} className="font-bold text-gray-800">
@@ -30,7 +30,7 @@ export default function Header() {
                 href="/admin"
                 className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                   isOnAdminPage
-                    ? "bg-brand-100 text-brand-700"
+                    ? "bg-gray-200 text-gray-800"
                     : "text-gray-500 hover:bg-gray-100"
                 }`}
               >

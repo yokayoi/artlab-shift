@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
-import { getSchedule, getMonthAvailabilities } from "@/lib/firebase/firestore";
+import { getSchedule, getMonthAvailabilities, updateScheduleStatus } from "@/lib/firebase/firestore";
 import { MonthSchedule } from "@/lib/types";
 import { formatMonthId } from "@/lib/utils/dateCalc";
 import { STATUS_LABELS, STATUS_COLORS } from "@/lib/utils/constants";
@@ -55,6 +55,18 @@ export default function AdminPage() {
     })();
   }, [user, isAdmin]);
 
+  const handleRevertToDraft = async (monthId: string) => {
+    if (!confirm("下書きに戻すと、ファシリテーターからの回答が無効になる可能性があります。よろしいですか？")) return;
+    await updateScheduleStatus(monthId, "draft");
+    setMonths((prev) =>
+      prev.map((m) =>
+        m.monthId === monthId && m.schedule
+          ? { ...m, schedule: { ...m.schedule, status: "draft" as const }, responseCount: 0 }
+          : m
+      )
+    );
+  };
+
   if (loading || dataLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -67,9 +79,14 @@ export default function AdminPage() {
     <div className="max-w-2xl mx-auto px-4 py-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold text-gray-800">管理ダッシュボード</h1>
-        <Link href="/admin/users" className="text-sm text-brand-600 hover:text-brand-800">
-          ユーザー管理
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link href="/admin/announcements" className="text-sm text-brand-600 hover:text-brand-800">
+            お知らせ管理
+          </Link>
+          <Link href="/admin/users" className="text-sm text-brand-600 hover:text-brand-800">
+            ユーザー管理
+          </Link>
+        </div>
       </div>
 
       <div className="space-y-3">
@@ -139,6 +156,14 @@ export default function AdminPage() {
                       支払い
                     </Link>
                   </>
+                )}
+                {entry.schedule && entry.schedule.status !== "draft" && (
+                  <button
+                    onClick={() => handleRevertToDraft(entry.monthId)}
+                    className="px-3 py-1.5 bg-white border border-orange-300 text-orange-600 text-sm rounded-lg hover:bg-orange-50"
+                  >
+                    日程変更
+                  </button>
                 )}
               </div>
             </div>
