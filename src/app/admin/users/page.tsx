@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { getAllUsers, updateUserRole, updateUserHourlyRate, deleteUserDoc, updateUserProfile } from "@/lib/firebase/firestore";
+import { getAllUsers, updateUserRole, updateUserHourlyRate, deleteUserDoc, updateUserProfile, setUserClassCount } from "@/lib/firebase/firestore";
 import { UserProfile } from "@/lib/types";
-import { getTier } from "@/lib/utils/constants";
+import { getTier, isTraining } from "@/lib/utils/constants";
 
 export default function AdminUsersPage() {
   const { user, isAdmin, loading } = useAuth();
@@ -17,6 +17,8 @@ export default function AdminUsersPage() {
   const [rateInput, setRateInput] = useState("");
   const [editingNickname, setEditingNickname] = useState<string | null>(null);
   const [nicknameInput, setNicknameInput] = useState("");
+  const [editingClassCount, setEditingClassCount] = useState<string | null>(null);
+  const [classCountInput, setClassCountInput] = useState("");
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) router.push("/");
@@ -74,6 +76,22 @@ export default function AdminUsersPage() {
       prev.map((u) => (u.uid === uid ? { ...u, nickname: nicknameInput } : u))
     );
     setEditingNickname(null);
+  };
+
+  const handleEditClassCount = (u: UserProfile) => {
+    setEditingClassCount(u.uid);
+    setClassCountInput((u.classCount || 0).toString());
+  };
+
+  const handleSaveClassCount = async (uid: string) => {
+    const count = parseInt(classCountInput);
+    if (!isNaN(count) && count >= 0) {
+      await setUserClassCount(uid, count);
+      setUsers((prev) =>
+        prev.map((u) => (u.uid === uid ? { ...u, classCount: count } : u))
+      );
+    }
+    setEditingClassCount(null);
   };
 
   const handleDeleteUser = async (targetUser: UserProfile) => {
@@ -185,7 +203,26 @@ export default function AdminUsersPage() {
               </button>
             )}
             <span className="text-gray-300">|</span>
-            <span className="text-xs text-gray-400">{u.classCount || 0}クラス</span>
+            {/* Class count edit */}
+            {editingClassCount === u.uid ? (
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  value={classCountInput}
+                  onChange={(e) => setClassCountInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSaveClassCount(u.uid)}
+                  className="w-16 text-sm border border-gray-300 rounded px-2 py-1 text-right"
+                  autoFocus
+                />
+                <span className="text-xs text-gray-500">回</span>
+                <button onClick={() => handleSaveClassCount(u.uid)} className="text-xs text-brand-600">保存</button>
+                <button onClick={() => setEditingClassCount(null)} className="text-xs text-gray-400">取消</button>
+              </div>
+            ) : (
+              <button onClick={() => handleEditClassCount(u)} className="text-xs text-gray-500 hover:text-brand-600">
+                {u.classCount || 0}回{isTraining(u.classCount || 0) ? " 📚研修" : ""}
+              </button>
+            )}
           </div>
         )}
       </div>

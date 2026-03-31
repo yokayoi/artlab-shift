@@ -28,9 +28,9 @@ export const TRAINING_MAX = 3;
 
 export const TIER_THRESHOLDS = [
   { tier: "platinum" as const, min: 300, label: "プラチナ", emoji: "💎", color: "bg-purple-100 text-purple-700 border-purple-300" },
-  { tier: "gold" as const, min: 70, label: "ゴールド", emoji: "🥇", color: "bg-yellow-100 text-yellow-700 border-yellow-300" },
-  { tier: "silver" as const, min: 40, label: "シルバー", emoji: "🥈", color: "bg-gray-100 text-gray-700 border-gray-300" },
-  { tier: "bronze" as const, min: 20, label: "ブロンズ", emoji: "🥉", color: "bg-orange-100 text-orange-700 border-orange-300" },
+  { tier: "gold" as const, min: 150, label: "ゴールド", emoji: "🥇", color: "bg-yellow-100 text-yellow-700 border-yellow-300" },
+  { tier: "silver" as const, min: 80, label: "シルバー", emoji: "🥈", color: "bg-gray-100 text-gray-700 border-gray-300" },
+  { tier: "bronze" as const, min: 30, label: "ブロンズ", emoji: "🥉", color: "bg-orange-100 text-orange-700 border-orange-300" },
 ] as const;
 
 export function isTraining(classCount: number) {

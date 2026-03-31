@@ -59,6 +59,10 @@ export async function updateUserClassCount(uid: string, count: number) {
   await updateDoc(doc(getFirebaseDb(), "users", uid), { classCount: increment(count), updatedAt: Timestamp.now() });
 }
 
+export async function setUserClassCount(uid: string, count: number) {
+  await updateDoc(doc(getFirebaseDb(), "users", uid), { classCount: count, updatedAt: Timestamp.now() });
+}
+
 export async function getAllUsers(): Promise<UserProfile[]> {
   const snap = await getDocs(collection(getFirebaseDb(), "users"));
   return snap.docs.map((d) => ({ uid: d.id, ...d.data() } as UserProfile));

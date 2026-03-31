@@ -344,9 +344,9 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
             </div>
             <div className="flex justify-between text-[10px] text-gray-400 mt-1">
               <span>0</span>
-              <span>20</span>
-              <span>40</span>
-              <span>70</span>
+              <span>30</span>
+              <span>80</span>
+              <span>150</span>
               <span>300</span>
             </div>
           </div>
