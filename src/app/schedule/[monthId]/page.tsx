@@ -3,10 +3,10 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { getSchedule, getAvailability, saveAvailability, getShift, getActiveAnnouncements, getCollectingSchedules, getSatokoMessage } from "@/lib/firebase/firestore";
+import { getSchedule, getAvailability, saveAvailability, getShift, getActiveAnnouncements, getCollectingSchedules } from "@/lib/firebase/firestore";
 import { MonthSchedule, Availability, ShiftAssignment, Announcement } from "@/lib/types";
 import { getSlotKey, parseMonthId, formatMonthId, formatDateShort, formatDeadline, isDeadlinePassed } from "@/lib/utils/dateCalc";
-import { CLASS_TYPE_COLORS, STATUS_LABELS, getTier, getNextTier } from "@/lib/utils/constants";
+import { CLASS_TYPE_COLORS, STATUS_LABELS, getTier, getNextTier, getSatokoEncouragement } from "@/lib/utils/constants";
 
 export default function FacilitatorSchedulePage({ params }: { params: Promise<{ monthId: string }> }) {
   const { monthId } = use(params);
@@ -20,7 +20,6 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
   const [dataLoading, setDataLoading] = useState(true);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [collectingMonths, setCollectingMonths] = useState<string[]>([]);
-  const [satokoMessage, setSatokoMessage] = useState("");
 
   useEffect(() => {
     if (!loading && !user) {
@@ -39,14 +38,12 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
       setSchedule(sched);
       setShift(shiftData);
       try {
-        const [anns, collectingScheds, msg] = await Promise.all([
+        const [anns, collectingScheds] = await Promise.all([
           getActiveAnnouncements(),
           getCollectingSchedules(),
-          getSatokoMessage(),
         ]);
         setAnnouncements(anns);
         setCollectingMonths(collectingScheds.map((s) => s.id).filter((id) => id !== monthId));
-        setSatokoMessage(msg);
       } catch {
         // announcements collection may not have rules deployed yet
       }
@@ -291,10 +288,15 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
       )}
 
       {/* スーパーさとこから一言 */}
-      {satokoMessage && (
+      {profile && (
         <div className="mt-8 bg-pink-50 rounded-xl border border-pink-200 p-4">
           <div className="text-xs font-medium text-pink-600 mb-1">スーパーさとこから一言</div>
-          <p className="text-sm text-gray-700 whitespace-pre-wrap">{satokoMessage}</p>
+          <p className="text-sm text-gray-700">
+            {getSatokoEncouragement(
+              profile.nickname || profile.displayName.split(" ")[0],
+              profile.classCount || 0
+            )}
+          </p>
         </div>
       )}
 

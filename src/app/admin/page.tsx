@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
-import { getSchedule, getMonthAvailabilities, updateScheduleStatus, getSatokoMessage, setSatokoMessage } from "@/lib/firebase/firestore";
+import { getSchedule, getMonthAvailabilities, updateScheduleStatus } from "@/lib/firebase/firestore";
 import { MonthSchedule } from "@/lib/types";
 import { formatMonthId } from "@/lib/utils/dateCalc";
 import { STATUS_LABELS, STATUS_COLORS } from "@/lib/utils/constants";
@@ -21,8 +21,6 @@ export default function AdminPage() {
   const router = useRouter();
   const [months, setMonths] = useState<MonthEntry[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
-  const [satokoMsg, setSatokoMsg] = useState("");
-  const [satokoSaved, setSatokoSaved] = useState(false);
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) {
@@ -53,8 +51,6 @@ export default function AdminPage() {
         });
       }
       setMonths(entries);
-      const msg = await getSatokoMessage();
-      setSatokoMsg(msg);
       setDataLoading(false);
     })();
   }, [user, isAdmin]);
@@ -90,26 +86,6 @@ export default function AdminPage() {
           <Link href="/admin/users" className="text-sm text-brand-600 hover:text-brand-800">
             ユーザー管理
           </Link>
-        </div>
-      </div>
-
-      {/* スーパーさとこから一言 */}
-      <div className="bg-pink-50 rounded-xl border border-pink-200 p-4 mb-6">
-        <label className="text-xs font-medium text-pink-600 block mb-2">スーパーさとこから一言</label>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={satokoMsg}
-            onChange={(e) => { setSatokoMsg(e.target.value); setSatokoSaved(false); }}
-            placeholder="ファシリテーターへのメッセージ"
-            className="flex-1 text-sm border border-pink-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-400"
-          />
-          <button
-            onClick={async () => { await setSatokoMessage(satokoMsg); setSatokoSaved(true); setTimeout(() => setSatokoSaved(false), 2000); }}
-            className="px-4 py-2 bg-pink-500 text-white text-sm rounded-lg hover:bg-pink-600 transition-colors whitespace-nowrap"
-          >
-            {satokoSaved ? "保存済み" : "保存"}
-          </button>
         </div>
       </div>
 
