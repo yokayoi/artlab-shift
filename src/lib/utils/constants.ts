@@ -24,12 +24,18 @@ export const STATUS_COLORS: Record<string, string> = {
 
 export const CLASS_DURATION_MINUTES = 70;
 
+export const TRAINING_MAX = 3;
+
 export const TIER_THRESHOLDS = [
-  { tier: "platinum" as const, min: 100, label: "プラチナ", emoji: "💎", color: "bg-purple-100 text-purple-700 border-purple-300" },
+  { tier: "platinum" as const, min: 300, label: "プラチナ", emoji: "💎", color: "bg-purple-100 text-purple-700 border-purple-300" },
   { tier: "gold" as const, min: 70, label: "ゴールド", emoji: "🥇", color: "bg-yellow-100 text-yellow-700 border-yellow-300" },
   { tier: "silver" as const, min: 40, label: "シルバー", emoji: "🥈", color: "bg-gray-100 text-gray-700 border-gray-300" },
   { tier: "bronze" as const, min: 20, label: "ブロンズ", emoji: "🥉", color: "bg-orange-100 text-orange-700 border-orange-300" },
 ] as const;
+
+export function isTraining(classCount: number) {
+  return classCount >= 1 && classCount <= TRAINING_MAX;
+}
 
 export function getTier(classCount: number) {
   for (const t of TIER_THRESHOLDS) {
@@ -57,6 +63,15 @@ const SATOKO_MESSAGES_STARTER = [
   "{name}さん、子どもたちの笑顔が最高のごほうびだよ！",
   "{name}さん、アートの力で子どもたちの未来を一緒に広げよう！",
   "{name}さん、ワクワクする気持ちを大切にね！",
+];
+
+const SATOKO_MESSAGES_TRAINING = [
+  "{name}さん、研修{count}回目お疲れさま！どんどん慣れてきてるね！",
+  "{name}さん、研修中！先輩たちも最初はみんな同じだったよ、大丈夫！",
+  "{name}さん、研修がんばってるね！子どもたちとの接し方、上手になってるよ！",
+  "{name}さん、あと{trainingLeft}回で研修卒業だよ！この調子！",
+  "{name}さん、研修期間は学びの宝庫！たくさん吸収してね！",
+  "{name}さん、研修中の{name}さんの成長が楽しみだよ！",
 ];
 
 const SATOKO_MESSAGES_BRONZE_ROAD = [
@@ -108,10 +123,13 @@ export function getSatokoEncouragement(name: string, classCount: number): string
   const tier = getTier(classCount);
   const nextTier = getNextTier(classCount);
   const remaining = nextTier?.remaining ?? 0;
+  const trainingLeft = Math.max(0, TRAINING_MAX - classCount + 1);
 
   let pool: string[];
-  if (!tier && classCount === 0) {
+  if (classCount === 0) {
     pool = SATOKO_MESSAGES_STARTER;
+  } else if (isTraining(classCount)) {
+    pool = SATOKO_MESSAGES_TRAINING;
   } else if (!tier) {
     pool = SATOKO_MESSAGES_BRONZE_ROAD;
   } else if (tier.tier === "bronze") {
@@ -128,5 +146,6 @@ export function getSatokoEncouragement(name: string, classCount: number): string
   return msg
     .replace(/{name}/g, name)
     .replace(/{count}/g, String(classCount))
-    .replace(/{remaining}/g, String(remaining));
+    .replace(/{remaining}/g, String(remaining))
+    .replace(/{trainingLeft}/g, String(trainingLeft));
 }

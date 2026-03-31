@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { updateUserProfile } from "@/lib/firebase/firestore";
 import { uploadProfileImage } from "@/lib/firebase/storage";
-import { getTier, getNextTier } from "@/lib/utils/constants";
+import { getTier, getNextTier, isTraining, TRAINING_MAX } from "@/lib/utils/constants";
 
 export default function ProfilePage() {
   const { user, profile, loading } = useAuth();
@@ -136,13 +136,23 @@ export default function ProfilePage() {
         <div className="flex items-center gap-3 mb-3">
           <div className="text-3xl font-bold text-brand-700">{classCount}</div>
           <div className="text-sm text-gray-500">クラス参加</div>
-          {tier && (
+          {isTraining(classCount) && (
+            <span className="px-3 py-1 rounded-full text-xs font-medium border bg-blue-100 text-blue-700 border-blue-300">
+              📚 研修中（{classCount}/{TRAINING_MAX}）
+            </span>
+          )}
+          {!isTraining(classCount) && tier && (
             <span className={`px-3 py-1 rounded-full text-xs font-medium border ${tier.color}`}>
               {tier.emoji} {tier.label}
             </span>
           )}
         </div>
-        {nextTier && (
+        {isTraining(classCount) && (
+          <div className="text-xs text-blue-600">
+            研修期間あと <span className="font-bold">{TRAINING_MAX - classCount}回</span>で卒業！
+          </div>
+        )}
+        {!isTraining(classCount) && nextTier && (
           <div className="text-xs text-gray-500">
             次のランク「{nextTier.label}」まであと <span className="font-bold text-brand-600">{nextTier.remaining}回</span>
           </div>
@@ -154,7 +164,7 @@ export default function ProfilePage() {
         <div className="mt-3 bg-gray-100 rounded-full h-2 overflow-hidden">
           <div
             className="h-full bg-brand-500 rounded-full transition-all"
-            style={{ width: `${Math.min(classCount, 100)}%` }}
+            style={{ width: `${Math.min((classCount / 300) * 100, 100)}%` }}
           />
         </div>
         <div className="flex justify-between text-[10px] text-gray-400 mt-1">
@@ -162,7 +172,7 @@ export default function ProfilePage() {
           <span>20</span>
           <span>40</span>
           <span>70</span>
-          <span>100</span>
+          <span>300</span>
         </div>
       </div>
     </div>
