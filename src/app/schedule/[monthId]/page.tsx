@@ -336,26 +336,28 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
             {!nextTier && tier && (
               <div className="text-xs text-brand-600 font-medium">最高ランク達成！</div>
             )}
-            <div className="mt-3 bg-gray-100 rounded-full h-2 overflow-hidden">
-              <div
-                className="h-full bg-brand-500 rounded-full transition-all"
-                style={{ width: `${Math.min((classCount / 300) * 100, 100)}%` }}
-              />
-            </div>
-            <div className="flex justify-between text-[10px] text-gray-400 mt-1">
-              <span>0</span>
-              <span>30</span>
-              <span>80</span>
-              <span>150</span>
-              <span>300</span>
+            <div className="mt-3 relative">
+              <div className="bg-gray-100 rounded-full h-2 overflow-hidden">
+                <div
+                  className="h-full bg-brand-500 rounded-full transition-all"
+                  style={{ width: `${Math.min((classCount / 300) * 100, 100)}%` }}
+                />
+              </div>
+              <div className="relative h-4 mt-1 text-[10px] text-gray-400">
+                <span className="absolute left-0">0</span>
+                <span className="absolute" style={{ left: "10%" }}>30</span>
+                <span className="absolute" style={{ left: "26.7%" }}>80</span>
+                <span className="absolute" style={{ left: "50%" }}>150</span>
+                <span className="absolute right-0">300</span>
+              </div>
             </div>
           </div>
         );
       })()}
 
       {/* 今月の給与 */}
-      {profile && schedule && (() => {
-        const mySlots = shift
+      {profile && (() => {
+        const mySlots = shift && schedule
           ? Object.entries(shift.assignments)
               .filter(([, uids]) => uids.includes(user?.uid || ""))
               .map(([key]) => key)
@@ -364,11 +366,13 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
         const totalMinutes = mySlots.length * CLASS_DURATION_MINUTES;
         const totalPay = Math.round(hourlyRate * (totalMinutes / 60));
         const slotLabels: Record<string, string> = {};
-        schedule.days.forEach((day) => {
-          day.slots.forEach((slot) => {
-            slotLabels[getSlotKey(day.date, slot.time)] = `${formatDateShort(day.date)} ${slot.time}`;
+        if (schedule) {
+          schedule.days.forEach((day) => {
+            day.slots.forEach((slot) => {
+              slotLabels[getSlotKey(day.date, slot.time)] = `${formatDateShort(day.date)} ${slot.time}`;
+            });
           });
-        });
+        }
         return (
           <div className="mt-4 bg-white rounded-xl border border-gray-200 p-4">
             <h2 className="font-medium text-gray-800 mb-3">{month}月の給与</h2>

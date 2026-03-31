@@ -161,18 +161,20 @@ export default function ProfilePage() {
           <div className="text-xs text-brand-600 font-medium">最高ランク達成！</div>
         )}
         {/* Progress bar */}
-        <div className="mt-3 bg-gray-100 rounded-full h-2 overflow-hidden">
-          <div
-            className="h-full bg-brand-500 rounded-full transition-all"
-            style={{ width: `${Math.min((classCount / 300) * 100, 100)}%` }}
-          />
-        </div>
-        <div className="flex justify-between text-[10px] text-gray-400 mt-1">
-          <span>0</span>
-          <span>30</span>
-          <span>80</span>
-          <span>150</span>
-          <span>300</span>
+        <div className="mt-3 relative">
+          <div className="bg-gray-100 rounded-full h-2 overflow-hidden">
+            <div
+              className="h-full bg-brand-500 rounded-full transition-all"
+              style={{ width: `${Math.min((classCount / 300) * 100, 100)}%` }}
+            />
+          </div>
+          <div className="relative h-4 mt-1 text-[10px] text-gray-400">
+            <span className="absolute left-0">0</span>
+            <span className="absolute" style={{ left: "10%" }}>30</span>
+            <span className="absolute" style={{ left: "26.7%" }}>80</span>
+            <span className="absolute" style={{ left: "50%" }}>150</span>
+            <span className="absolute right-0">300</span>
+          </div>
         </div>
       </div>
     </div>
