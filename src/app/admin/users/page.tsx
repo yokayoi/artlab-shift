@@ -260,7 +260,7 @@ export default function AdminUsersPage() {
       <h2 className="text-sm font-medium text-gray-500 mb-2">管理者（{admins.length}名）</h2>
       <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 mb-6">
         {admins.map((u) => (
-          <UserRow key={u.uid} u={u} />
+          <UserRow key={u.uid} u={u} showRate />
         ))}
       </div>
 

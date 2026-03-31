@@ -85,7 +85,7 @@ export default function PayrollPage({ params }: { params: Promise<{ monthId: str
         const userProfile = users.find((u) => u.uid === uid);
         payrollMap.set(uid, {
           uid,
-          name: userProfile?.displayName || uid,
+          name: userProfile?.nickname || userProfile?.displayName || uid,
           hourlyRate: userProfile?.hourlyRate || 0,
           slotCount: 0,
           totalMinutes: 0,
