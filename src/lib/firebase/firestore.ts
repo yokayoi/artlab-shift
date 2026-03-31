@@ -197,6 +197,17 @@ export async function deleteAnnouncement(id: string) {
   await deleteDoc(doc(getFirebaseDb(), "announcements", id));
 }
 
+// ===== Super Satoko Message =====
+
+export async function getSatokoMessage(): Promise<string> {
+  const snap = await getDoc(doc(getFirebaseDb(), "settings", "satokoMessage"));
+  return snap.exists() ? (snap.data().body || "") : "";
+}
+
+export async function setSatokoMessage(body: string) {
+  await setDoc(doc(getFirebaseDb(), "settings", "satokoMessage"), { body, updatedAt: Timestamp.now() });
+}
+
 // ===== Schedule Queries =====
 
 export async function getCollectingSchedules(): Promise<MonthSchedule[]> {
