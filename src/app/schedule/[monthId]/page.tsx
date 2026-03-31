@@ -296,7 +296,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
       {profile && (
         <div className="mt-8 bg-pink-50 rounded-xl border border-pink-200 p-4">
           <div className="flex items-center gap-2 mb-1">
-            <img src="/sato.png" alt="AI-SATO-β" className="w-8 h-8 rounded-full object-cover" />
+            <img src="/sato.png" alt="AI-SATO-β" className="w-16 h-16 rounded-full object-cover" />
             <div className="text-xs font-medium text-pink-600">AI-SATO-β から一言</div>
           </div>
           <p className="text-sm text-gray-700">
