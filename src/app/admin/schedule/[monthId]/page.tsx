@@ -18,6 +18,10 @@ export default function AdminScheduleSetupPage({ params }: { params: Promise<{ m
   const [saving, setSaving] = useState(false);
   const [addingDate, setAddingDate] = useState(false);
   const [newDate, setNewDate] = useState("");
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [editingDateIndex, setEditingDateIndex] = useState<number | null>(null);
+  const [editingDateValue, setEditingDateValue] = useState("");
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) {
@@ -73,6 +77,62 @@ export default function AdminScheduleSetupPage({ params }: { params: Promise<{ m
     setDays((prev) => prev.filter((d) => d.date !== dateToRemove));
   };
 
+  const handleDragStart = (index: number) => {
+    setDragIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragOverIndex(index);
+  };
+
+  const handleDrop = (index: number) => {
+    if (dragIndex === null || dragIndex === index) {
+      setDragIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+    setDays((prev) => {
+      const updated = [...prev];
+      const [moved] = updated.splice(dragIndex, 1);
+      updated.splice(index, 0, moved);
+      return updated;
+    });
+    setDragIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDragIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleEditDate = (index: number) => {
+    setEditingDateIndex(index);
+    setEditingDateValue(days[index].date);
+  };
+
+  const handleSaveDateEdit = (index: number) => {
+    if (!editingDateValue) return;
+    const duplicate = days.find((d, i) => i !== index && d.date === editingDateValue);
+    if (duplicate) {
+      setEditingDateIndex(null);
+      return;
+    }
+    const date = new Date(editingDateValue);
+    const dayNames = ["日", "月", "火", "水", "木", "金", "土"];
+    setDays((prev) => {
+      const updated = [...prev];
+      updated[index] = {
+        ...updated[index],
+        date: editingDateValue,
+        dayLabel: `${dayNames[date.getDay()]}曜`,
+      };
+      return updated;
+    });
+    setEditingDateIndex(null);
+  };
+
   const handleSave = async () => {
     if (!user) return;
     setSaving(true);
@@ -126,13 +186,47 @@ export default function AdminScheduleSetupPage({ params }: { params: Promise<{ m
 
       <div className="space-y-4">
         {days.map((day, dayIndex) => (
-          <div key={day.date} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div
+            key={`${dayIndex}-${day.date}`}
+            draggable={isDraft}
+            onDragStart={() => handleDragStart(dayIndex)}
+            onDragOver={(e) => handleDragOver(e, dayIndex)}
+            onDrop={() => handleDrop(dayIndex)}
+            onDragEnd={handleDragEnd}
+            className={`bg-white rounded-xl border overflow-hidden transition-all ${
+              dragIndex === dayIndex ? "opacity-40 scale-[0.98]" : ""
+            } ${dragOverIndex === dayIndex && dragIndex !== dayIndex ? "border-brand-400 ring-2 ring-brand-200" : "border-gray-200"}`}
+          >
             <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 flex items-center justify-between">
-              <div>
-                <span className="font-medium text-gray-700">{formatDateShort(day.date)}</span>
-                <span className="text-sm text-gray-500 ml-2">{day.dayLabel}</span>
+              <div className="flex items-center gap-2">
+                {isDraft && (
+                  <span className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 select-none">⠿</span>
+                )}
+                {editingDateIndex === dayIndex ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="date"
+                      value={editingDateValue}
+                      onChange={(e) => setEditingDateValue(e.target.value)}
+                      className="border border-gray-300 rounded px-2 py-1 text-sm"
+                      autoFocus
+                    />
+                    <button onClick={() => handleSaveDateEdit(dayIndex)} className="text-xs text-brand-600">確定</button>
+                    <button onClick={() => setEditingDateIndex(null)} className="text-xs text-gray-400">取消</button>
+                  </div>
+                ) : (
+                  <>
+                    <span
+                      className={`font-medium text-gray-700 ${isDraft ? "cursor-pointer hover:text-brand-600" : ""}`}
+                      onClick={() => isDraft && handleEditDate(dayIndex)}
+                    >
+                      {formatDateShort(day.date)}
+                    </span>
+                    <span className="text-sm text-gray-500">{day.dayLabel}</span>
+                  </>
+                )}
               </div>
-              {isDraft && (
+              {isDraft && editingDateIndex !== dayIndex && (
                 <button
                   onClick={() => handleRemoveDate(day.date)}
                   className="text-gray-400 hover:text-red-500 text-sm transition-colors"
