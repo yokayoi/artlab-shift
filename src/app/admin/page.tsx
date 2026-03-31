@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
-import { getSchedule, getMonthAvailabilities, updateScheduleStatus, deleteSchedule } from "@/lib/firebase/firestore";
+import { getSchedule, getMonthAvailabilities, updateScheduleStatus, deleteSchedule, updateSchedule } from "@/lib/firebase/firestore";
 import { MonthSchedule } from "@/lib/types";
-import { formatMonthId } from "@/lib/utils/dateCalc";
+import { formatMonthId, formatDeadline, parseMonthId } from "@/lib/utils/dateCalc";
 import { STATUS_LABELS, STATUS_COLORS } from "@/lib/utils/constants";
 
 interface MonthEntry {
@@ -21,6 +21,8 @@ export default function AdminPage() {
   const router = useRouter();
   const [months, setMonths] = useState<MonthEntry[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const [editingDeadline, setEditingDeadline] = useState<string | null>(null);
+  const [deadlineInput, setDeadlineInput] = useState("");
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) {
@@ -67,6 +69,18 @@ export default function AdminPage() {
     );
   };
 
+  const handleSaveDeadline = async (monthId: string) => {
+    await updateSchedule(monthId, { deadline: deadlineInput });
+    setMonths((prev) =>
+      prev.map((m) =>
+        m.monthId === monthId && m.schedule
+          ? { ...m, schedule: { ...m.schedule, deadline: deadlineInput } }
+          : m
+      )
+    );
+    setEditingDeadline(null);
+  };
+
   const handleDeleteSchedule = async (monthId: string, label: string) => {
     if (!confirm(`${label}のスケジュールを削除しますか？関連する回答・シフトデータも無効になります。`)) return;
     await deleteSchedule(monthId);
@@ -106,12 +120,45 @@ export default function AdminPage() {
               <div>
                 <h2 className="font-medium text-gray-800">{entry.label}</h2>
                 {entry.schedule ? (
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[entry.schedule.status]}`}>
-                      {STATUS_LABELS[entry.schedule.status]}
-                    </span>
+                  <div className="mt-1 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[entry.schedule.status]}`}>
+                        {STATUS_LABELS[entry.schedule.status]}
+                      </span>
+                      {entry.schedule.status !== "draft" && (
+                        <span className="text-xs text-gray-500">{entry.responseCount}名回答済み</span>
+                      )}
+                    </div>
                     {entry.schedule.status !== "draft" && (
-                      <span className="text-xs text-gray-500">{entry.responseCount}名回答済み</span>
+                      <div className="flex items-center gap-1">
+                        {editingDeadline === entry.monthId ? (
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="date"
+                              value={deadlineInput}
+                              onChange={(e) => setDeadlineInput(e.target.value)}
+                              className="border border-gray-300 rounded px-2 py-0.5 text-xs"
+                              autoFocus
+                            />
+                            <button onClick={() => handleSaveDeadline(entry.monthId)} className="text-xs text-brand-600">保存</button>
+                            <button onClick={() => setEditingDeadline(null)} className="text-xs text-gray-400">取消</button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setEditingDeadline(entry.monthId);
+                              setDeadlineInput(entry.schedule?.deadline || "");
+                            }}
+                            className="text-xs text-gray-500 hover:text-brand-600"
+                          >
+                            締切: {(() => {
+                              const { year: y, month: m } = parseMonthId(entry.monthId);
+                              return formatDeadline(y, m, entry.schedule?.deadline);
+                            })()}
+                            <span className="ml-1 text-gray-400">✎</span>
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                 ) : (

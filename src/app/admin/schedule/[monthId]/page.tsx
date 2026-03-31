@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { getSchedule, createSchedule, updateSchedule, updateScheduleStatus } from "@/lib/firebase/firestore";
 import { MonthSchedule, ClassType, DaySchedule } from "@/lib/types";
-import { generateDaySchedules, parseMonthId, formatDateShort, formatDeadline, generateDefaultSlots } from "@/lib/utils/dateCalc";
+import { generateDaySchedules, parseMonthId, formatDateShort, formatDeadline, generateDefaultSlots, getDeadlineDate } from "@/lib/utils/dateCalc";
 import { CLASS_TYPES, CLASS_TYPE_COLORS, TIME_SLOTS } from "@/lib/utils/constants";
 
 export default function AdminScheduleSetupPage({ params }: { params: Promise<{ monthId: string }> }) {
@@ -22,6 +22,7 @@ export default function AdminScheduleSetupPage({ params }: { params: Promise<{ m
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [editingDateIndex, setEditingDateIndex] = useState<number | null>(null);
   const [editingDateValue, setEditingDateValue] = useState("");
+  const [deadlineInput, setDeadlineInput] = useState("");
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) {
@@ -36,9 +37,11 @@ export default function AdminScheduleSetupPage({ params }: { params: Promise<{ m
       if (existing) {
         setSchedule(existing);
         setDays(existing.days);
+        setDeadlineInput(existing.deadline || "");
       } else {
         const { year, month } = parseMonthId(monthId);
         setDays(generateDaySchedules(year, month));
+        setDeadlineInput(getDeadlineDate(year, month));
       }
       setDataLoading(false);
     })();
@@ -137,9 +140,10 @@ export default function AdminScheduleSetupPage({ params }: { params: Promise<{ m
     if (!user) return;
     setSaving(true);
     if (schedule) {
-      await updateSchedule(monthId, { days });
+      await updateSchedule(monthId, { days, deadline: deadlineInput || undefined });
     } else {
       await createSchedule(monthId, days, user.uid);
+      if (deadlineInput) await updateSchedule(monthId, { deadline: deadlineInput });
     }
     setSaving(false);
     router.push("/admin");
@@ -153,6 +157,7 @@ export default function AdminScheduleSetupPage({ params }: { params: Promise<{ m
     } else {
       await updateSchedule(monthId, { days });
     }
+    if (deadlineInput) await updateSchedule(monthId, { deadline: deadlineInput });
     await updateScheduleStatus(monthId, "collecting");
     setSaving(false);
     router.push("/admin");
@@ -178,10 +183,20 @@ export default function AdminScheduleSetupPage({ params }: { params: Promise<{ m
         {year}年{month}月 スケジュール設定
       </h1>
 
-      {/* Deadline info */}
-      <div className="mb-6 text-sm text-gray-500">
-        回答締め切り: <span className="font-medium">{formatDeadline(year, month)}</span>
-        <span className="text-xs text-gray-400 ml-1">（開催1週間前）</span>
+      {/* Deadline setting */}
+      <div className="mb-6 flex items-center gap-3 text-sm">
+        <span className="text-gray-500">回答締め切り:</span>
+        <input
+          type="date"
+          value={deadlineInput}
+          onChange={(e) => setDeadlineInput(e.target.value)}
+          className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+        />
+        {deadlineInput && (
+          <span className="text-gray-500 text-xs">
+            {formatDeadline(year, month, deadlineInput)}
+          </span>
+        )}
       </div>
 
       <div className="space-y-4">

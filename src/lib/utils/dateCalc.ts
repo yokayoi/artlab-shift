@@ -116,16 +116,21 @@ export function getDeadline(year: number, month: number): Date {
   return deadline;
 }
 
-export function formatDeadline(year: number, month: number): string {
-  const deadline = getDeadline(year, month);
+export function formatDeadline(year: number, month: number, customDeadline?: string): string {
+  const deadline = customDeadline ? new Date(customDeadline) : getDeadline(year, month);
   const dayNames = ["日", "月", "火", "水", "木", "金", "土"];
   return `${deadline.getMonth() + 1}月${deadline.getDate()}日(${dayNames[deadline.getDay()]})`;
 }
 
-export function isDeadlinePassed(year: number, month: number): boolean {
-  const deadline = getDeadline(year, month);
+export function isDeadlinePassed(year: number, month: number, customDeadline?: string): boolean {
+  const deadline = customDeadline ? new Date(customDeadline) : getDeadline(year, month);
   deadline.setHours(23, 59, 59);
   return new Date() > deadline;
+}
+
+export function getDeadlineDate(year: number, month: number): string {
+  const deadline = getDeadline(year, month);
+  return formatDate(deadline);
 }
 
 export function generateDefaultSlots(): SlotDefinition[] {

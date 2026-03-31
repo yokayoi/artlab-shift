@@ -175,10 +175,10 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
             </span>
             {schedule.status === "collecting" && (
               <div className="mt-2 text-sm">
-                {isDeadlinePassed(year, month) ? (
+                {isDeadlinePassed(year, month, schedule?.deadline) ? (
                   <span className="text-red-600 font-medium">締め切りを過ぎています</span>
                 ) : (
-                  <span className="text-gray-500">回答締め切り: <span className="font-medium">{formatDeadline(year, month)}</span></span>
+                  <span className="text-gray-500">回答締め切り: <span className="font-medium">{formatDeadline(year, month, schedule?.deadline)}</span></span>
                 )}
               </div>
             )}

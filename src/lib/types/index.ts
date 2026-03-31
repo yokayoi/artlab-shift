@@ -36,6 +36,7 @@ export interface MonthSchedule {
   status: MonthStatus;
   createdBy: string;
   days: DaySchedule[];
+  deadline?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
