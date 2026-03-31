@@ -56,7 +56,7 @@ export function getNextTier(classCount: number) {
   return null;
 }
 
-// ===== スーパーさとこメッセージ =====
+// ===== AI-SATO-β メッセージ =====
 
 const SATOKO_MESSAGES_STARTER = [
   "{name}さん、はじめの一歩を応援してるよ！一緒にがんばろうね！",
