@@ -354,11 +354,12 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
       })()}
 
       {/* 今月の給与 */}
-      {profile && shift && schedule && (() => {
-        const mySlots = Object.entries(shift.assignments)
-          .filter(([, uids]) => uids.includes(user?.uid || ""))
-          .map(([key]) => key);
-        if (mySlots.length === 0) return null;
+      {profile && schedule && (() => {
+        const mySlots = shift
+          ? Object.entries(shift.assignments)
+              .filter(([, uids]) => uids.includes(user?.uid || ""))
+              .map(([key]) => key)
+          : [];
         const hourlyRate = profile.hourlyRate || 0;
         const totalMinutes = mySlots.length * CLASS_DURATION_MINUTES;
         const totalPay = Math.round(hourlyRate * (totalMinutes / 60));
@@ -371,21 +372,27 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
         return (
           <div className="mt-4 bg-white rounded-xl border border-gray-200 p-4">
             <h2 className="font-medium text-gray-800 mb-3">{month}月の給与</h2>
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-sm text-gray-500">
-                {hourlyRate > 0 ? `¥${hourlyRate.toLocaleString()}/h` : "時給未設定"} × {mySlots.length}コマ（{totalMinutes}分）
-              </div>
-              <div className={`text-2xl font-bold ${hourlyRate > 0 ? "text-brand-700" : "text-gray-400"}`}>
-                {hourlyRate > 0 ? `¥${totalPay.toLocaleString()}` : "—"}
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {mySlots.sort().map((key) => (
-                <span key={key} className="text-xs bg-gray-50 border border-gray-200 rounded px-2 py-0.5 text-gray-600">
-                  {slotLabels[key] || key}
-                </span>
-              ))}
-            </div>
+            {mySlots.length === 0 ? (
+              <div className="text-sm text-gray-400">シフト未割当</div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-sm text-gray-500">
+                    {hourlyRate > 0 ? `¥${hourlyRate.toLocaleString()}/h` : "時給未設定"} × {mySlots.length}コマ（{totalMinutes}分）
+                  </div>
+                  <div className={`text-2xl font-bold ${hourlyRate > 0 ? "text-brand-700" : "text-gray-400"}`}>
+                    {hourlyRate > 0 ? `¥${totalPay.toLocaleString()}` : "—"}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {mySlots.sort().map((key) => (
+                    <span key={key} className="text-xs bg-gray-50 border border-gray-200 rounded px-2 py-0.5 text-gray-600">
+                      {slotLabels[key] || key}
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         );
       })()}
