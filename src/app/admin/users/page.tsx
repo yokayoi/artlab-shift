@@ -41,7 +41,7 @@ export default function AdminUsersPage() {
   };
 
   const handleCopyInviteLink = async () => {
-    const url = `${window.location.origin}/login`;
+    const url = `${window.location.origin}/login?openExternalBrowser=1`;
     await navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -207,7 +207,7 @@ export default function AdminUsersPage() {
         <div className="flex items-center gap-2">
           <input
             readOnly
-            value={typeof window !== "undefined" ? `${window.location.origin}/login` : ""}
+            value={typeof window !== "undefined" ? `${window.location.origin}/login?openExternalBrowser=1` : ""}
             className="flex-1 text-sm bg-white border border-brand-200 rounded-lg px-3 py-2 text-gray-700"
           />
           <button

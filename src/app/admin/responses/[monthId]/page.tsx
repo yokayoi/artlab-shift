@@ -4,8 +4,8 @@ import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
-import { getSchedule, getMonthAvailabilities } from "@/lib/firebase/firestore";
-import { MonthSchedule, Availability } from "@/lib/types";
+import { getSchedule, getMonthAvailabilities, getAllUsers } from "@/lib/firebase/firestore";
+import { MonthSchedule, Availability, UserProfile } from "@/lib/types";
 import { getSlotKey, parseMonthId, formatDateShort } from "@/lib/utils/dateCalc";
 
 export default function AdminResponsesPage({ params }: { params: Promise<{ monthId: string }> }) {
@@ -14,6 +14,7 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
   const router = useRouter();
   const [schedule, setSchedule] = useState<MonthSchedule | null>(null);
   const [availabilities, setAvailabilities] = useState<Availability[]>([]);
+  const [userMap, setUserMap] = useState<Record<string, UserProfile>>({});
   const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
@@ -23,12 +24,16 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
   useEffect(() => {
     if (!user || !isAdmin) return;
     (async () => {
-      const [sched, avails] = await Promise.all([
+      const [sched, avails, users] = await Promise.all([
         getSchedule(monthId),
         getMonthAvailabilities(monthId),
+        getAllUsers(),
       ]);
       setSchedule(sched);
       setAvailabilities(avails);
+      const map: Record<string, UserProfile> = {};
+      users.forEach((u) => { map[u.uid] = u; });
+      setUserMap(map);
       setDataLoading(false);
     })();
   }, [user, isAdmin, monthId]);
@@ -82,7 +87,7 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
               </th>
               {availabilities.map((avail) => (
                 <th key={avail.id} className="px-2 py-2 font-medium text-gray-500 text-center whitespace-nowrap text-xs min-w-[60px]">
-                  {avail.facilitatorName}
+                  {userMap[avail.facilitatorId]?.nickname || avail.facilitatorName}
                 </th>
               ))}
             </tr>
@@ -103,7 +108,7 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
                   {availabilities.map((avail) => (
                     <td key={avail.id} className="px-2 py-2 text-center">
                       {avail.slots[sk.key] ? (
-                        <span className="text-brand-600 font-bold">○</span>
+                        <span className="text-brand-600 text-lg leading-none">●</span>
                       ) : (
                         <span className="text-gray-300">—</span>
                       )}
