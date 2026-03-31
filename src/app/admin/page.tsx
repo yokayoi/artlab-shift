@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
-import { getSchedule, getMonthAvailabilities, updateScheduleStatus } from "@/lib/firebase/firestore";
+import { getSchedule, getMonthAvailabilities, updateScheduleStatus, deleteSchedule } from "@/lib/firebase/firestore";
 import { MonthSchedule } from "@/lib/types";
 import { formatMonthId } from "@/lib/utils/dateCalc";
 import { STATUS_LABELS, STATUS_COLORS } from "@/lib/utils/constants";
@@ -63,6 +63,16 @@ export default function AdminPage() {
         m.monthId === monthId && m.schedule
           ? { ...m, schedule: { ...m.schedule, status: "draft" as const }, responseCount: 0 }
           : m
+      )
+    );
+  };
+
+  const handleDeleteSchedule = async (monthId: string, label: string) => {
+    if (!confirm(`${label}のスケジュールを削除しますか？関連する回答・シフトデータも無効になります。`)) return;
+    await deleteSchedule(monthId);
+    setMonths((prev) =>
+      prev.map((m) =>
+        m.monthId === monthId ? { ...m, schedule: null, responseCount: 0 } : m
       )
     );
   };
@@ -163,6 +173,14 @@ export default function AdminPage() {
                     className="px-3 py-1.5 bg-white border border-orange-300 text-orange-600 text-sm rounded-lg hover:bg-orange-50"
                   >
                     日程変更
+                  </button>
+                )}
+                {entry.schedule && (
+                  <button
+                    onClick={() => handleDeleteSchedule(entry.monthId, entry.label)}
+                    className="px-3 py-1.5 bg-white border border-red-300 text-red-500 text-sm rounded-lg hover:bg-red-50"
+                  >
+                    削除
                   </button>
                 )}
               </div>

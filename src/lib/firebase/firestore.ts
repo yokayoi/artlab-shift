@@ -106,6 +106,10 @@ export async function updateScheduleStatus(monthId: string, status: MonthStatus)
   });
 }
 
+export async function deleteSchedule(monthId: string) {
+  await deleteDoc(doc(getFirebaseDb(), "schedules", monthId));
+}
+
 export function onScheduleChange(monthId: string, callback: (schedule: MonthSchedule | null) => void) {
   return onSnapshot(doc(getFirebaseDb(), "schedules", monthId), (snap) => {
     callback(snap.exists() ? ({ id: snap.id, ...snap.data() } as MonthSchedule) : null);
