@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getSchedule, getAvailability, saveAvailability, getShift, getActiveAnnouncements, getCollectingSchedules } from "@/lib/firebase/firestore";
 import { MonthSchedule, Availability, ShiftAssignment, Announcement } from "@/lib/types";
 import { getSlotKey, parseMonthId, formatMonthId, formatDateShort, formatDeadline, isDeadlinePassed } from "@/lib/utils/dateCalc";
-import { CLASS_TYPE_COLORS, STATUS_LABELS } from "@/lib/utils/constants";
+import { CLASS_TYPE_COLORS, STATUS_LABELS, getTier, getNextTier } from "@/lib/utils/constants";
 
 export default function FacilitatorSchedulePage({ params }: { params: Promise<{ monthId: string }> }) {
   const { monthId } = use(params);
@@ -286,6 +286,48 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
           )}
         </>
       )}
+
+      {/* 参加実績 */}
+      {profile && (() => {
+        const classCount = profile.classCount || 0;
+        const tier = getTier(classCount);
+        const nextTier = getNextTier(classCount);
+        return (
+          <div className="mt-8 bg-white rounded-xl border border-gray-200 p-4">
+            <h2 className="font-medium text-gray-800 mb-3">参加実績</h2>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="text-3xl font-bold text-brand-700">{classCount}</div>
+              <div className="text-sm text-gray-500">クラス参加</div>
+              {tier && (
+                <span className={`px-3 py-1 rounded-full text-xs font-medium border ${tier.color}`}>
+                  {tier.emoji} {tier.label}
+                </span>
+              )}
+            </div>
+            {nextTier && (
+              <div className="text-xs text-gray-500">
+                次のランク「{nextTier.label}」まであと <span className="font-bold text-brand-600">{nextTier.remaining}回</span>
+              </div>
+            )}
+            {!nextTier && tier && (
+              <div className="text-xs text-brand-600 font-medium">最高ランク達成！</div>
+            )}
+            <div className="mt-3 bg-gray-100 rounded-full h-2 overflow-hidden">
+              <div
+                className="h-full bg-brand-500 rounded-full transition-all"
+                style={{ width: `${Math.min(classCount, 100)}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+              <span>0</span>
+              <span>20</span>
+              <span>40</span>
+              <span>70</span>
+              <span>100</span>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
