@@ -50,18 +50,27 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
 
   if (!schedule) return <div className="p-4">スケジュールが見つかりません</div>;
 
-  // Build slot keys
-  const slotKeys: { key: string; label: string }[] = [];
+  // Build slot keys (only slots that need facilitator AND have classType set)
+  const slotKeys: { key: string; date: string; dateLabel: string; time: string }[] = [];
   schedule.days.forEach((day) => {
     day.slots.forEach((slot) => {
-      if (slot.needsFacilitator) {
+      if (slot.needsFacilitator && slot.classType) {
         slotKeys.push({
           key: getSlotKey(day.date, slot.time),
-          label: `${formatDateShort(day.date)} ${slot.time}`,
+          date: day.date,
+          dateLabel: formatDateShort(day.date),
+          time: slot.time,
         });
       }
     });
   });
+
+  // Calculate rowSpan for date grouping
+  const dateRowSpans: Record<string, number> = {};
+  slotKeys.forEach((sk) => {
+    dateRowSpans[sk.date] = (dateRowSpans[sk.date] || 0) + 1;
+  });
+  const dateFirstRow = new Set<string>();
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
@@ -79,8 +88,11 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-200">
-              <th className="text-left px-3 py-2 font-medium text-gray-600 sticky left-0 bg-white min-w-[120px]">
-                日時
+              <th className="text-left px-3 py-2 font-medium text-gray-600 sticky left-0 bg-white min-w-[80px]">
+                日付
+              </th>
+              <th className="text-left px-2 py-2 font-medium text-gray-600 min-w-[50px]">
+                時間
               </th>
               <th className="px-2 py-2 font-medium text-brand-700 text-center whitespace-nowrap bg-brand-50 min-w-[48px]">
                 計
@@ -95,10 +107,20 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
           <tbody>
             {slotKeys.map((sk) => {
               const count = availabilities.filter((a) => a.slots[sk.key]).length;
+              const isFirst = !dateFirstRow.has(sk.date);
+              if (isFirst) dateFirstRow.add(sk.date);
               return (
                 <tr key={sk.key} className="border-b border-gray-100">
-                  <td className="px-3 py-2 text-gray-700 sticky left-0 bg-white whitespace-nowrap text-xs font-medium">
-                    {sk.label}
+                  {isFirst && (
+                    <td
+                      rowSpan={dateRowSpans[sk.date]}
+                      className="px-3 py-2 text-gray-700 sticky left-0 bg-white whitespace-nowrap text-xs font-medium align-middle border-r border-gray-100"
+                    >
+                      {sk.dateLabel}
+                    </td>
+                  )}
+                  <td className="px-2 py-2 text-gray-500 whitespace-nowrap text-xs">
+                    {sk.time}
                   </td>
                   <td className={`px-2 py-2 text-center font-bold bg-brand-50 ${
                     count === 0 ? "text-red-600" : count <= 2 ? "text-orange-600" : "text-brand-700"
