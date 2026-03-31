@@ -9,8 +9,9 @@ import {
   getShift,
   saveShift,
   updateScheduleStatus,
+  getAllUsers,
 } from "@/lib/firebase/firestore";
-import { MonthSchedule, Availability, ShiftAssignment } from "@/lib/types";
+import { MonthSchedule, Availability, UserProfile } from "@/lib/types";
 import { getSlotKey, parseMonthId, formatDateShort } from "@/lib/utils/dateCalc";
 import { CLASS_TYPE_COLORS } from "@/lib/utils/constants";
 
@@ -20,6 +21,7 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
   const router = useRouter();
   const [schedule, setSchedule] = useState<MonthSchedule | null>(null);
   const [availabilities, setAvailabilities] = useState<Availability[]>([]);
+  const [userMap, setUserMap] = useState<Record<string, UserProfile>>({});
   const [assignments, setAssignments] = useState<Record<string, string[]>>({});
   const [assignmentNames, setAssignmentNames] = useState<Record<string, string[]>>({});
   const [dataLoading, setDataLoading] = useState(true);
@@ -32,13 +34,17 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
   useEffect(() => {
     if (!user || !isAdmin) return;
     (async () => {
-      const [sched, avails, existingShift] = await Promise.all([
+      const [sched, avails, existingShift, users] = await Promise.all([
         getSchedule(monthId),
         getMonthAvailabilities(monthId),
         getShift(monthId),
+        getAllUsers(),
       ]);
       setSchedule(sched);
       setAvailabilities(avails);
+      const map: Record<string, UserProfile> = {};
+      users.forEach((u) => { map[u.uid] = u; });
+      setUserMap(map);
       if (existingShift) {
         setAssignments(existingShift.assignments);
         setAssignmentNames(existingShift.assignmentNames);
@@ -46,6 +52,10 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
       setDataLoading(false);
     })();
   }, [user, isAdmin, monthId]);
+
+  const getName = (uid: string, fallback: string) => {
+    return userMap[uid]?.nickname || fallback;
+  };
 
   const toggleAssignment = (slotKey: string, uid: string, name: string) => {
     setAssignments((prev) => {
@@ -104,39 +114,44 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
       </h1>
 
       <div className="space-y-4">
-        {schedule.days.map((day) => (
-          <div key={day.date}>
-            <h2 className="font-medium text-gray-700 mb-2">
-              {formatDateShort(day.date)} {day.dayLabel}
-            </h2>
-            <div className="space-y-3">
-              {day.slots
-                .filter((slot) => slot.needsFacilitator)
-                .map((slot) => {
+        {schedule.days.map((day) => {
+          const activeSlots = day.slots.filter((s) => s.needsFacilitator && s.classType);
+          if (activeSlots.length === 0) return null;
+
+          return (
+            <div key={day.date} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                <span className="font-medium text-gray-700">{formatDateShort(day.date)}</span>
+                <span className="text-sm text-gray-500 ml-2">{day.dayLabel}</span>
+              </div>
+              <div className={`grid gap-0 divide-x divide-gray-100`} style={{ gridTemplateColumns: `repeat(${activeSlots.length}, minmax(0, 1fr))` }}>
+                {activeSlots.map((slot) => {
                   const slotKey = getSlotKey(day.date, slot.time);
                   const available = availabilities.filter((a) => a.slots[slotKey]);
                   const assigned = assignments[slotKey] || [];
-                  const colors = slot.classType ? CLASS_TYPE_COLORS[slot.classType] : null;
+                  const colors = CLASS_TYPE_COLORS[slot.classType!];
 
                   return (
-                    <div key={slotKey} className="bg-white rounded-xl border border-gray-200 p-4">
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="font-medium text-gray-700">{slot.time}</span>
-                        {colors && slot.classType && (
-                          <span
-                            className="px-2 py-0.5 rounded text-xs font-medium"
-                            style={{ backgroundColor: colors.bg, color: colors.text }}
-                          >
-                            {slot.classType}
-                          </span>
-                        )}
-                        <span className="text-xs text-gray-400 ml-auto">
-                          {assigned.length}名割当 / {available.length}名応募
-                        </span>
+                    <div key={slotKey} className="p-3 text-center">
+                      <div className="text-xs text-gray-500 mb-1">{slot.time}</div>
+                      <div
+                        className="text-[10px] px-1 py-0.5 rounded mb-2 inline-block"
+                        style={{ backgroundColor: colors.bg, color: colors.text }}
+                      >
+                        {slot.classType}
                       </div>
-                      <div className="flex flex-wrap gap-2">
+
+                      {/* Assignee count */}
+                      <div className={`text-xs mb-2 ${
+                        assigned.length === 0 ? "text-red-500" : "text-green-600"
+                      }`}>
+                        {assigned.length}名割当
+                      </div>
+
+                      {/* Facilitator toggles */}
+                      <div className="space-y-1">
                         {available.length === 0 ? (
-                          <span className="text-xs text-red-500">応募者なし</span>
+                          <div className="text-[10px] text-gray-300">応募なし</div>
                         ) : (
                           available.map((avail) => {
                             const isAssigned = assigned.includes(avail.facilitatorId);
@@ -146,13 +161,13 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
                                 onClick={() =>
                                   toggleAssignment(slotKey, avail.facilitatorId, avail.facilitatorName)
                                 }
-                                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
+                                className={`w-full px-2 py-1.5 rounded-lg text-xs font-medium border transition-all ${
                                   isAssigned
                                     ? "bg-brand-500 border-brand-500 text-white"
-                                    : "bg-white border-gray-300 text-gray-600 hover:border-brand-300"
+                                    : "bg-white border-gray-200 text-gray-500 hover:border-brand-300"
                                 }`}
                               >
-                                {avail.facilitatorName}
+                                {getName(avail.facilitatorId, avail.facilitatorName)}
                               </button>
                             );
                           })
@@ -161,9 +176,10 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
                     </div>
                   );
                 })}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="mt-6 space-y-3">
