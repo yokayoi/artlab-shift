@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getSchedule, getAvailability, saveAvailability, getShift, getActiveAnnouncements, getCollectingSchedules } from "@/lib/firebase/firestore";
 import { MonthSchedule, Availability, ShiftAssignment, Announcement } from "@/lib/types";
 import { getSlotKey, parseMonthId, formatMonthId, formatDateShort, formatDeadline, isDeadlinePassed } from "@/lib/utils/dateCalc";
-import { CLASS_TYPE_COLORS, STATUS_LABELS, CLASS_DURATION_MINUTES, TRAINING_MAX, getTier, getNextTier, isTraining, getSatokoEncouragement } from "@/lib/utils/constants";
+import { CLASS_TYPE_COLORS, STATUS_LABELS, CLASS_DURATION_MINUTES, TRAINING_MAX, LAUNCH_YEAR, LAUNCH_MONTH, getTier, getNextTier, isTraining, getSatokoEncouragement } from "@/lib/utils/constants";
 
 export default function FacilitatorSchedulePage({ params }: { params: Promise<{ monthId: string }> }) {
   const { monthId } = use(params);
@@ -81,6 +81,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
   const { year, month } = parseMonthId(monthId);
   const prevMonth = month === 1 ? formatMonthId(year - 1, 12) : formatMonthId(year, month - 1);
   const nextMonth = month === 12 ? formatMonthId(year + 1, 1) : formatMonthId(year, month + 1);
+  const isFirstMonth = year === LAUNCH_YEAR && month === LAUNCH_MONTH;
 
   if (loading || dataLoading) {
     return (
@@ -139,12 +140,16 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
 
       {/* Month Navigation */}
       <div className="flex items-center justify-between mb-6">
-        <button
-          onClick={() => router.push(`/schedule/${prevMonth}`)}
-          className="p-2 text-gray-400 hover:text-gray-600"
-        >
-          &lt;
-        </button>
+        {isFirstMonth ? (
+          <div className="p-2 w-8" />
+        ) : (
+          <button
+            onClick={() => router.push(`/schedule/${prevMonth}`)}
+            className="p-2 text-gray-400 hover:text-gray-600"
+          >
+            &lt;
+          </button>
+        )}
         <h1 className="text-xl font-bold text-gray-800">
           {year}年{month}月
         </h1>

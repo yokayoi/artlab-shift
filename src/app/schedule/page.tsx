@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatMonthId } from "@/lib/utils/dateCalc";
+import { LAUNCH_YEAR, LAUNCH_MONTH } from "@/lib/utils/constants";
 
 export default function SchedulePage() {
   const { user, loading } = useAuth();
@@ -16,7 +17,13 @@ export default function SchedulePage() {
     }
     if (!loading && user) {
       const now = new Date();
-      const monthId = formatMonthId(now.getFullYear(), now.getMonth() + 1);
+      let y = now.getFullYear();
+      let m = now.getMonth() + 1;
+      if (y < LAUNCH_YEAR || (y === LAUNCH_YEAR && m < LAUNCH_MONTH)) {
+        y = LAUNCH_YEAR;
+        m = LAUNCH_MONTH;
+      }
+      const monthId = formatMonthId(y, m);
       router.push(`/schedule/${monthId}`);
     }
   }, [user, loading, router]);

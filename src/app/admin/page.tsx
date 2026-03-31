@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getSchedule, getMonthAvailabilities, updateScheduleStatus, deleteSchedule, updateSchedule } from "@/lib/firebase/firestore";
 import { MonthSchedule } from "@/lib/types";
 import { formatMonthId, formatDeadline, parseMonthId } from "@/lib/utils/dateCalc";
-import { STATUS_LABELS, STATUS_COLORS } from "@/lib/utils/constants";
+import { STATUS_LABELS, STATUS_COLORS, LAUNCH_YEAR, LAUNCH_MONTH } from "@/lib/utils/constants";
 
 interface MonthEntry {
   monthId: string;
@@ -37,6 +37,7 @@ export default function AdminPage() {
 
       for (let offset = -1; offset <= 3; offset++) {
         const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+        if (d.getFullYear() < LAUNCH_YEAR || (d.getFullYear() === LAUNCH_YEAR && d.getMonth() + 1 < LAUNCH_MONTH)) continue;
         const monthId = formatMonthId(d.getFullYear(), d.getMonth() + 1);
         const schedule = await getSchedule(monthId);
         let responseCount = 0;

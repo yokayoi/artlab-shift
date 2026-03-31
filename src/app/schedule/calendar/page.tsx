@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { getClassDays, formatMonthId } from "@/lib/utils/dateCalc";
+import { LAUNCH_YEAR, LAUNCH_MONTH } from "@/lib/utils/constants";
 
 export default function CalendarPage() {
   const { user, loading } = useAuth();
@@ -23,13 +24,20 @@ export default function CalendarPage() {
     );
   }
 
-  const months = Array.from({ length: 12 }, (_, i) => i + 1);
+  const allMonths = Array.from({ length: 12 }, (_, i) => i + 1);
+  const months = currentYear === LAUNCH_YEAR
+    ? allMonths.filter((m) => m >= LAUNCH_MONTH)
+    : currentYear < LAUNCH_YEAR ? [] : allMonths;
   const dayNames = ["日", "月", "火", "水", "木", "金", "土"];
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
       <div className="flex items-center justify-between mb-6">
-        <button onClick={() => setCurrentYear((y) => y - 1)} className="p-2 text-gray-400 hover:text-gray-600">&lt;</button>
+        {currentYear <= LAUNCH_YEAR ? (
+          <div className="p-2 w-8" />
+        ) : (
+          <button onClick={() => setCurrentYear((y) => y - 1)} className="p-2 text-gray-400 hover:text-gray-600">&lt;</button>
+        )}
         <h1 className="text-xl font-bold text-gray-800">{currentYear}年 クラス開催予定日</h1>
         <button onClick={() => setCurrentYear((y) => y + 1)} className="p-2 text-gray-400 hover:text-gray-600">&gt;</button>
       </div>

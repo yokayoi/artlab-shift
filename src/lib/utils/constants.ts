@@ -24,6 +24,10 @@ export const STATUS_COLORS: Record<string, string> = {
 
 export const CLASS_DURATION_MINUTES = 70;
 
+// アプリのリリース開始月（これより前の月は表示しない）
+export const LAUNCH_YEAR = 2026;
+export const LAUNCH_MONTH = 4; // 4月
+
 export const TRAINING_MAX = 3;
 
 export const TIER_THRESHOLDS = [
