@@ -1,6 +1,6 @@
 export const TIME_SLOTS = ["10:30", "12:00", "14:30", "16:00"] as const;
 
-export const CLASS_TYPES = ["カリキュラム", "オーダーメイド", "オーダーテック"] as const;
+export const CLASS_TYPES = ["カリキュラム", "オーダーメイド"] as const;
 
 export const CLASS_TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   "カリキュラム": { bg: "#DBEAFE", text: "#1E40AF", border: "#93C5FD" },

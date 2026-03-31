@@ -54,7 +54,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
         const initial: Record<string, boolean> = {};
         sched.days.forEach((day) =>
           day.slots.forEach((slot) => {
-            if (slot.needsFacilitator) {
+            if (slot.needsFacilitator && slot.classType) {
               initial[getSlotKey(day.date, slot.time)] = false;
             }
           })
@@ -200,7 +200,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                     const assignedNames = shift?.assignmentNames?.[key];
                     const isAssignedToMe = shift?.assignments?.[key]?.includes(user?.uid || "");
 
-                    if (!slot.needsFacilitator) {
+                    if (!slot.needsFacilitator || !slot.classType) {
                       return (
                         <div key={key} className="p-3 text-center bg-gray-50">
                           <div className="text-xs text-gray-400 mb-1">{slot.time}</div>
@@ -212,14 +212,12 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                     return (
                       <div key={key} className="p-3 text-center">
                         <div className="text-xs text-gray-500 mb-1">{slot.time}</div>
-                        {colors && (
-                          <div
-                            className="text-[10px] px-1 py-0.5 rounded mb-2 inline-block"
-                            style={{ backgroundColor: colors.bg, color: colors.text }}
-                          >
-                            {slot.classType}
-                          </div>
-                        )}
+                        <div
+                          className="text-[10px] px-1 py-0.5 rounded mb-2 inline-block"
+                          style={{ backgroundColor: colors!.bg, color: colors!.text }}
+                        >
+                          {slot.classType}
+                        </div>
                         {isPublished && assignedNames ? (
                           <div className="mt-1">
                             {isAssignedToMe ? (

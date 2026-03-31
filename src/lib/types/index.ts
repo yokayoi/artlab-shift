@@ -1,6 +1,6 @@
 import { Timestamp } from "firebase/firestore";
 
-export type ClassType = "カリキュラム" | "オーダーメイド" | "オーダーテック";
+export type ClassType = "カリキュラム" | "オーダーメイド";
 export type MonthStatus = "draft" | "collecting" | "shift_created" | "published";
 export type UserRole = "admin" | "facilitator";
 
