@@ -99,7 +99,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
       <div className="flex justify-end mb-2">
         <button
           onClick={() => router.push("/schedule/calendar")}
-          className="text-xs text-brand-600 hover:text-brand-700"
+          className="text-xs text-gray-600 bg-white border border-gray-300 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors"
         >
           年間カレンダー
         </button>
@@ -347,6 +347,14 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
               <div className="text-xs text-brand-600 font-medium">最高ランク達成！</div>
             )}
             <div className="mt-3 relative">
+              {/* Tier icons above bar */}
+              <div className="relative h-6 mb-1">
+                <span className="absolute text-center text-[10px] -translate-x-1/2" style={{ left: "0.5%" }} title="研修">📚</span>
+                <span className="absolute text-center text-[10px] -translate-x-1/2" style={{ left: "10%" }} title="ブロンズ">🥉</span>
+                <span className="absolute text-center text-[10px] -translate-x-1/2" style={{ left: "26.7%" }} title="シルバー">🥈</span>
+                <span className="absolute text-center text-[10px] -translate-x-1/2" style={{ left: "50%" }} title="ゴールド">🥇</span>
+                <span className="absolute text-center text-[10px] -translate-x-1/2" style={{ left: "100%" }} title="プラチナ">💎</span>
+              </div>
               <div className="bg-gray-100 rounded-full h-2 overflow-hidden">
                 <div
                   className="h-full bg-brand-500 rounded-full transition-all"
@@ -354,10 +362,10 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                 />
               </div>
               <div className="relative h-4 mt-1 text-[10px] text-gray-400">
-                <span className="absolute left-0">0</span>
-                <span className="absolute" style={{ left: "10%" }}>30</span>
-                <span className="absolute" style={{ left: "26.7%" }}>80</span>
-                <span className="absolute" style={{ left: "50%" }}>150</span>
+                <span className="absolute -translate-x-1/2" style={{ left: "0.5%" }}>研修</span>
+                <span className="absolute -translate-x-1/2" style={{ left: "10%" }}>30</span>
+                <span className="absolute -translate-x-1/2" style={{ left: "26.7%" }}>80</span>
+                <span className="absolute -translate-x-1/2" style={{ left: "50%" }}>150</span>
                 <span className="absolute right-0">300</span>
               </div>
             </div>
@@ -385,14 +393,19 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
         }
         return (
           <div className="mt-4 bg-white rounded-xl border border-gray-200 p-4">
-            <h2 className="font-medium text-gray-800 mb-3">{month}月の給与</h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-medium text-gray-800">{month}月の給与</h2>
+              <span className={`text-sm font-medium px-2 py-0.5 rounded ${hourlyRate > 0 ? "bg-brand-50 text-brand-700" : "bg-red-50 text-red-500"}`}>
+                {hourlyRate > 0 ? `時給 ¥${hourlyRate.toLocaleString()}` : "時給未設定"}
+              </span>
+            </div>
             {mySlots.length === 0 ? (
               <div className="text-sm text-gray-400">シフト未割当</div>
             ) : (
               <>
                 <div className="flex items-center justify-between mb-3">
                   <div className="text-sm text-gray-500">
-                    {hourlyRate > 0 ? `¥${hourlyRate.toLocaleString()}/h` : "時給未設定"} × {mySlots.length}コマ（{totalMinutes}分）
+                    {mySlots.length}コマ（{totalMinutes}分）
                   </div>
                   <div className={`text-2xl font-bold ${hourlyRate > 0 ? "text-brand-700" : "text-gray-400"}`}>
                     {hourlyRate > 0 ? `¥${totalPay.toLocaleString()}` : "—"}

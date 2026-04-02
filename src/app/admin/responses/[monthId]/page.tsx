@@ -4,7 +4,7 @@ import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
-import { getSchedule, getMonthAvailabilities, getAllUsers } from "@/lib/firebase/firestore";
+import { getSchedule, getMonthAvailabilities, getAllUsers, saveAvailability } from "@/lib/firebase/firestore";
 import { MonthSchedule, Availability, UserProfile } from "@/lib/types";
 import { getSlotKey, parseMonthId, formatDateShort } from "@/lib/utils/dateCalc";
 
@@ -16,6 +16,8 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
   const [availabilities, setAvailabilities] = useState<Availability[]>([]);
   const [userMap, setUserMap] = useState<Record<string, UserProfile>>({});
   const [dataLoading, setDataLoading] = useState(true);
+  const [modified, setModified] = useState<Set<string>>(new Set());
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) router.push("/");
@@ -37,6 +39,28 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
       setDataLoading(false);
     })();
   }, [user, isAdmin, monthId]);
+
+  const toggleSlot = (availIndex: number, slotKey: string) => {
+    setAvailabilities((prev) => {
+      const updated = [...prev];
+      const avail = { ...updated[availIndex] };
+      avail.slots = { ...avail.slots, [slotKey]: !avail.slots[slotKey] };
+      updated[availIndex] = avail;
+      return updated;
+    });
+    setModified((prev) => new Set(prev).add(availabilities[availIndex].facilitatorId));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    for (const avail of availabilities) {
+      if (modified.has(avail.facilitatorId)) {
+        await saveAvailability(monthId, avail.facilitatorId, avail.facilitatorName, avail.slots);
+      }
+    }
+    setModified(new Set());
+    setSaving(false);
+  };
 
   const { year, month } = parseMonthId(monthId);
 
@@ -127,8 +151,12 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
                   }`}>
                     {count}
                   </td>
-                  {availabilities.map((avail) => (
-                    <td key={avail.id} className="px-2 py-2 text-center">
+                  {availabilities.map((avail, ai) => (
+                    <td
+                      key={avail.id}
+                      className="px-2 py-2 text-center cursor-pointer hover:bg-gray-50 transition-colors"
+                      onClick={() => toggleSlot(ai, sk.key)}
+                    >
                       {avail.slots[sk.key] ? (
                         <span className="text-brand-600 text-lg leading-none">●</span>
                       ) : (
@@ -142,6 +170,19 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
           </tbody>
         </table>
       </div>
+
+      {modified.size > 0 && (
+        <div className="mt-4 flex items-center gap-3">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-6 py-2 bg-brand-600 text-white rounded-xl font-medium hover:bg-brand-700 disabled:bg-gray-300 transition-colors"
+          >
+            {saving ? "保存中..." : `変更を保存（${modified.size}名）`}
+          </button>
+          <span className="text-xs text-gray-500">クリックで投票を変更できます</span>
+        </div>
+      )}
 
       <div className="mt-6">
         <Link
