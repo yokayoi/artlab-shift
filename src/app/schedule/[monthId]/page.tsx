@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getSchedule, getAvailability, saveAvailability, getShift, getActiveAnnouncements, getCollectingSchedules } from "@/lib/firebase/firestore";
 import { MonthSchedule, Availability, ShiftAssignment, Announcement } from "@/lib/types";
 import { getSlotKey, parseMonthId, formatMonthId, formatDateShort, formatDeadline, isDeadlinePassed } from "@/lib/utils/dateCalc";
-import { CLASS_TYPE_COLORS, STATUS_LABELS, CLASS_DURATION_MINUTES, TRAINING_MAX, LAUNCH_YEAR, LAUNCH_MONTH, getTier, getNextTier, isTraining, getSatokoEncouragement } from "@/lib/utils/constants";
+import { CLASS_TYPE_COLORS, STATUS_LABELS, CLASS_DURATION_MINUTES, TRAINING_MAX, LAUNCH_YEAR, LAUNCH_MONTH, getTier, getNextTier, isTraining } from "@/lib/utils/constants";
 
 export default function FacilitatorSchedulePage({ params }: { params: Promise<{ monthId: string }> }) {
   const { monthId } = use(params);
@@ -20,6 +20,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
   const [dataLoading, setDataLoading] = useState(true);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [collectingMonths, setCollectingMonths] = useState<string[]>([]);
+  const [satokoMsg, setSatokoMsg] = useState<string>("");
 
   useEffect(() => {
     if (!loading && !user) {
@@ -64,6 +65,20 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
       setDataLoading(false);
     })();
   }, [user, monthId]);
+
+  useEffect(() => {
+    if (!profile) return;
+    const name = profile.nickname || profile.displayName.split(" ")[0];
+    const classCount = profile.classCount || 0;
+    fetch("/api/satoko", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, classCount }),
+    })
+      .then((res) => res.json())
+      .then((data) => setSatokoMsg(data.message))
+      .catch(() => setSatokoMsg(`${name}さん、今日もアートで世界を広げよう！`));
+  }, [profile]);
 
   const toggleSlot = (key: string) => {
     if (schedule?.status !== "collecting") return;
@@ -299,12 +314,11 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
             <img src="/sato.png" alt="AI-SATO-β" className="rounded-full object-cover shrink-0" style={{ width: 46, height: 46 }} />
             <div>
               <div className="text-xs font-medium text-pink-600 mb-1">AI-SATO-β から一言</div>
-              <p className="text-sm text-gray-700">
-                {getSatokoEncouragement(
-                  profile.nickname || profile.displayName.split(" ")[0],
-                  profile.classCount || 0
-                )}
-              </p>
+              {satokoMsg ? (
+                <p className="text-sm text-gray-700">{satokoMsg}</p>
+              ) : (
+                <p className="text-sm text-gray-400 animate-pulse">考え中...</p>
+              )}
             </div>
           </div>
         </div>
