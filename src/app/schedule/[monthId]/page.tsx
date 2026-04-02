@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getSchedule, getAvailability, saveAvailability, getShift, getActiveAnnouncements, getCollectingSchedules } from "@/lib/firebase/firestore";
 import { MonthSchedule, Availability, ShiftAssignment, Announcement } from "@/lib/types";
 import { getSlotKey, parseMonthId, formatMonthId, formatDateShort, formatDeadline, isDeadlinePassed } from "@/lib/utils/dateCalc";
-import { CLASS_TYPE_COLORS, STATUS_LABELS, CLASS_DURATION_MINUTES, TRAINING_MAX, LAUNCH_YEAR, LAUNCH_MONTH, getTier, getNextTier, isTraining } from "@/lib/utils/constants";
+import { CLASS_TYPE_COLORS, STATUS_LABELS, CLASS_DURATION_MINUTES, TRAINING_MAX, LAUNCH_YEAR, LAUNCH_MONTH, getTier, getNextTier, isTraining, getEffectiveRate } from "@/lib/utils/constants";
 
 export default function FacilitatorSchedulePage({ params }: { params: Promise<{ monthId: string }> }) {
   const { monthId } = use(params);
@@ -394,9 +394,13 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
               .filter(([, uids]) => uids.includes(user?.uid || ""))
               .map(([key]) => key)
           : [];
-        const hourlyRate = profile.hourlyRate || 0;
+        const classCount = profile.classCount || 0;
+        const effectiveRate = getEffectiveRate(classCount, profile.hourlyRate || 0);
+        const trainingRate = classCount >= 1 && classCount <= TRAINING_MAX;
+        const transportCost = profile.transportCost || 0;
         const totalMinutes = mySlots.length * CLASS_DURATION_MINUTES;
-        const totalPay = Math.round(hourlyRate * (totalMinutes / 60));
+        const classPay = Math.round(effectiveRate * (totalMinutes / 60));
+        const totalPay = classPay + (mySlots.length > 0 ? transportCost : 0);
         const slotLabels: Record<string, string> = {};
         if (schedule) {
           schedule.days.forEach((day) => {
@@ -409,20 +413,34 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
           <div className="mt-4 bg-white rounded-xl border border-gray-200 p-4">
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-medium text-gray-800">{month}月の給与</h2>
-              <span className={`text-sm font-medium px-2 py-0.5 rounded ${hourlyRate > 0 ? "bg-brand-50 text-brand-700" : "bg-red-50 text-red-500"}`}>
-                {hourlyRate > 0 ? `時給 ¥${hourlyRate.toLocaleString()}` : "時給未設定"}
+              <span className={`text-sm font-medium px-2 py-0.5 rounded ${effectiveRate > 0 ? "bg-brand-50 text-brand-700" : "bg-red-50 text-red-500"}`}>
+                {effectiveRate > 0
+                  ? `時給 ¥${effectiveRate.toLocaleString()}${trainingRate ? "（研修）" : ""}`
+                  : "時給未設定"}
               </span>
             </div>
             {mySlots.length === 0 ? (
               <div className="text-sm text-gray-400">シフト未割当</div>
             ) : (
               <>
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-2">
                   <div className="text-sm text-gray-500">
                     {mySlots.length}コマ（{totalMinutes}分）
                   </div>
-                  <div className={`text-2xl font-bold ${hourlyRate > 0 ? "text-brand-700" : "text-gray-400"}`}>
-                    {hourlyRate > 0 ? `¥${totalPay.toLocaleString()}` : "—"}
+                  <div className="text-sm text-gray-700">
+                    ¥{classPay.toLocaleString()}
+                  </div>
+                </div>
+                {transportCost > 0 && (
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-sm text-gray-500">交通費</div>
+                    <div className="text-sm text-gray-700">¥{transportCost.toLocaleString()}</div>
+                  </div>
+                )}
+                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                  <div className="text-sm font-medium text-gray-700">合計</div>
+                  <div className={`text-2xl font-bold ${effectiveRate > 0 ? "text-brand-700" : "text-gray-400"}`}>
+                    {effectiveRate > 0 ? `¥${totalPay.toLocaleString()}` : "—"}
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1">

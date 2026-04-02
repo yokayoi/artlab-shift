@@ -6,14 +6,17 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getSchedule, getShift, getAllUsers } from "@/lib/firebase/firestore";
 import { MonthSchedule, ShiftAssignment, UserProfile } from "@/lib/types";
 import { parseMonthId, getSlotKey, formatDateShort } from "@/lib/utils/dateCalc";
-import { CLASS_DURATION_MINUTES } from "@/lib/utils/constants";
+import { CLASS_DURATION_MINUTES, getEffectiveRate } from "@/lib/utils/constants";
 
 interface FacilitatorPayroll {
   uid: string;
   name: string;
   hourlyRate: number;
+  isTrainingRate: boolean;
+  transportCost: number;
   slotCount: number;
   totalMinutes: number;
+  classPay: number;
   totalPay: number;
   slots: { label: string; key: string }[];
 }
@@ -83,12 +86,17 @@ export default function PayrollPage({ params }: { params: Promise<{ monthId: str
     for (const uid of uids) {
       if (!payrollMap.has(uid)) {
         const userProfile = users.find((u) => u.uid === uid);
+        const classCount = userProfile?.classCount || 0;
+        const effectiveRate = getEffectiveRate(classCount, userProfile?.hourlyRate || 0);
         payrollMap.set(uid, {
           uid,
           name: userProfile?.nickname || userProfile?.displayName || uid,
-          hourlyRate: userProfile?.hourlyRate || 0,
+          hourlyRate: effectiveRate,
+          isTrainingRate: classCount >= 1 && classCount <= 3,
+          transportCost: userProfile?.transportCost || 0,
           slotCount: 0,
           totalMinutes: 0,
+          classPay: 0,
           totalPay: 0,
           slots: [],
         });
@@ -103,7 +111,8 @@ export default function PayrollPage({ params }: { params: Promise<{ monthId: str
   // Calculate pay
   const payrolls: FacilitatorPayroll[] = [];
   for (const entry of payrollMap.values()) {
-    entry.totalPay = Math.round(entry.hourlyRate * (entry.totalMinutes / 60));
+    entry.classPay = Math.round(entry.hourlyRate * (entry.totalMinutes / 60));
+    entry.totalPay = entry.classPay + entry.transportCost;
     entry.slots.sort((a, b) => a.key.localeCompare(b.key));
     payrolls.push(entry);
   }
@@ -143,10 +152,22 @@ export default function PayrollPage({ params }: { params: Promise<{ monthId: str
           <div key={p.uid} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="px-4 py-3 flex items-center justify-between">
               <div>
-                <div className="font-medium text-gray-800">{p.name}</div>
-                <div className="text-xs text-gray-500">
-                  {p.hourlyRate > 0 ? `¥${p.hourlyRate.toLocaleString()}/h` : "時給未設定"} × {p.slotCount}コマ（{p.totalMinutes}分）
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-gray-800">{p.name}</span>
+                  {p.isTrainingRate && (
+                    <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">研修</span>
+                  )}
                 </div>
+                <div className="text-xs text-gray-500 mt-0.5">
+                  {p.hourlyRate > 0 ? `¥${p.hourlyRate.toLocaleString()}/h` : "時給未設定"}
+                  {p.isTrainingRate && "（研修時給）"}
+                  {" × "}{p.slotCount}コマ（{p.totalMinutes}分）= ¥{p.classPay.toLocaleString()}
+                </div>
+                {p.transportCost > 0 && (
+                  <div className="text-xs text-gray-500">
+                    交通費 ¥{p.transportCost.toLocaleString()}/月
+                  </div>
+                )}
               </div>
               <div className={`text-lg font-bold ${p.hourlyRate > 0 ? "text-brand-700" : "text-red-500"}`}>
                 {p.hourlyRate > 0 ? `¥${p.totalPay.toLocaleString()}` : "要設定"}

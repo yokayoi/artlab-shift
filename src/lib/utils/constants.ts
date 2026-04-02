@@ -29,6 +29,7 @@ export const LAUNCH_YEAR = 2026;
 export const LAUNCH_MONTH = 4; // 4月
 
 export const TRAINING_MAX = 3;
+export const TRAINING_HOURLY_RATE = 1000;
 
 export const TIER_THRESHOLDS = [
   { tier: "platinum" as const, min: 300, label: "プラチナ", emoji: "💎", color: "bg-purple-100 text-purple-700 border-purple-300" },
@@ -39,6 +40,12 @@ export const TIER_THRESHOLDS = [
 
 export function isTraining(classCount: number) {
   return classCount >= 1 && classCount <= TRAINING_MAX;
+}
+
+/** 研修中（classCount 1〜3）は TRAINING_HOURLY_RATE、それ以降は設定時給 */
+export function getEffectiveRate(classCount: number, hourlyRate: number): number {
+  if (classCount >= 1 && classCount <= TRAINING_MAX) return TRAINING_HOURLY_RATE;
+  return hourlyRate;
 }
 
 export function getTier(classCount: number) {

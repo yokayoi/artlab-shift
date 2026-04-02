@@ -12,6 +12,7 @@ export interface UserProfile {
   photoURL?: string;
   role: UserRole;
   hourlyRate?: number;
+  transportCost?: number;
   classCount?: number;
   createdAt: Timestamp;
   updatedAt: Timestamp;

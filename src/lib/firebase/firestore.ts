@@ -47,6 +47,10 @@ export async function updateUserHourlyRate(uid: string, hourlyRate: number) {
   await updateDoc(doc(getFirebaseDb(), "users", uid), { hourlyRate, updatedAt: Timestamp.now() });
 }
 
+export async function updateUserTransportCost(uid: string, transportCost: number) {
+  await updateDoc(doc(getFirebaseDb(), "users", uid), { transportCost, updatedAt: Timestamp.now() });
+}
+
 export async function updateUserProfile(uid: string, data: { nickname?: string; photoURL?: string }) {
   await updateDoc(doc(getFirebaseDb(), "users", uid), { ...data, updatedAt: Timestamp.now() });
 }

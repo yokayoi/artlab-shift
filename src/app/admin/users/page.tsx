@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { getAllUsers, updateUserRole, updateUserHourlyRate, deleteUserDoc, updateUserProfile, setUserClassCount } from "@/lib/firebase/firestore";
+import { getAllUsers, updateUserRole, updateUserHourlyRate, updateUserTransportCost, deleteUserDoc, updateUserProfile, setUserClassCount } from "@/lib/firebase/firestore";
 import { UserProfile } from "@/lib/types";
-import { getTier, isTraining } from "@/lib/utils/constants";
+import { getTier, isTraining, TRAINING_HOURLY_RATE } from "@/lib/utils/constants";
 
 export default function AdminUsersPage() {
   const { user, isAdmin, loading } = useAuth();
@@ -19,6 +19,8 @@ export default function AdminUsersPage() {
   const [nicknameInput, setNicknameInput] = useState("");
   const [editingClassCount, setEditingClassCount] = useState<string | null>(null);
   const [classCountInput, setClassCountInput] = useState("");
+  const [editingTransport, setEditingTransport] = useState<string | null>(null);
+  const [transportInput, setTransportInput] = useState("");
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) router.push("/");
@@ -92,6 +94,22 @@ export default function AdminUsersPage() {
       );
     }
     setEditingClassCount(null);
+  };
+
+  const handleEditTransport = (u: UserProfile) => {
+    setEditingTransport(u.uid);
+    setTransportInput((u.transportCost || 0).toString());
+  };
+
+  const handleSaveTransport = async (uid: string) => {
+    const cost = parseInt(transportInput);
+    if (!isNaN(cost) && cost >= 0) {
+      await updateUserTransportCost(uid, cost);
+      setUsers((prev) =>
+        prev.map((u) => (u.uid === uid ? { ...u, transportCost: cost } : u))
+      );
+    }
+    setEditingTransport(null);
   };
 
   const handleDeleteUser = async (targetUser: UserProfile) => {
@@ -199,7 +217,30 @@ export default function AdminUsersPage() {
               </div>
             ) : (
               <button onClick={() => handleEditRate(u)} className="text-xs text-gray-500 hover:text-brand-600">
-                {u.hourlyRate ? `¥${u.hourlyRate.toLocaleString()}/h` : "時給未設定"}
+                {isTraining(u.classCount || 0)
+                  ? `¥${TRAINING_HOURLY_RATE.toLocaleString()}/h（研修）`
+                  : u.hourlyRate ? `¥${u.hourlyRate.toLocaleString()}/h` : "時給未設定"}
+              </button>
+            )}
+            <span className="text-gray-300">|</span>
+            {/* Transport cost edit */}
+            {editingTransport === u.uid ? (
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  value={transportInput}
+                  onChange={(e) => setTransportInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSaveTransport(u.uid)}
+                  className="w-20 text-sm border border-gray-300 rounded px-2 py-1 text-right"
+                  autoFocus
+                />
+                <span className="text-xs text-gray-500">円</span>
+                <button onClick={() => handleSaveTransport(u.uid)} className="text-xs text-brand-600">保存</button>
+                <button onClick={() => setEditingTransport(null)} className="text-xs text-gray-400">取消</button>
+              </div>
+            ) : (
+              <button onClick={() => handleEditTransport(u)} className="text-xs text-gray-500 hover:text-brand-600">
+                {u.transportCost ? `交通費 ¥${u.transportCost.toLocaleString()}/月` : "交通費なし"}
               </button>
             )}
             <span className="text-gray-300">|</span>
