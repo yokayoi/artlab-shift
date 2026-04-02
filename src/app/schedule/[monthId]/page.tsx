@@ -307,6 +307,34 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
         </>
       )}
 
+      {/* ファシリテーターガイドライン */}
+      <div className="mt-8 bg-white rounded-xl border border-gray-200 p-4">
+        <h2 className="font-medium text-gray-800 mb-3">ファシリテーターガイドライン</h2>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { title: "アートデザインラボについて", url: "https://docs.google.com/presentation/d/1v4oo_HjM9oIXgB9JH0wSQ86k7C2Lf25MzayfkahYib4/edit?usp=sharing" },
+            { title: "ファシリテーション&レビュー方法", url: "https://docs.google.com/presentation/d/1TdIsjPcKPR6NsP6vc2mv13p8ZfmGxuODobnBWOtRNXM/edit?usp=sharing" },
+            { title: "作品、道具、素材の扱い方", url: "https://docs.google.com/presentation/d/1Y_7XEnLeQ79se5FBDFilL4AubNdA-tQn2k3lrA_GeiI/edit?usp=sharing" },
+            { title: "時給&シフト管理", url: "https://docs.google.com/presentation/d/1IyTND2hSQ4IAyxW8EHe5DMlT5KLOs2OjF46Hr2ZbFLE/edit?usp=sharing" },
+            { title: "緊急対応", url: "https://docs.google.com/presentation/d/1SsEa1Y5HfbO_KYxyVyXLqD9kzPA21jehXEkF14f66PY/edit?usp=sharing" },
+            { title: "保護者アンケート", url: "https://docs.google.com/presentation/d/16wXORXZtBSdz7SvjVtYOtJsgqwEg7fguYeZP8wQTi1I/edit?usp=sharing" },
+          ].map((doc) => (
+            <a
+              key={doc.url}
+              href={doc.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 rounded-lg border border-gray-100 hover:bg-brand-50 hover:border-brand-200 transition-colors"
+            >
+              <span className="text-brand-600 shrink-0">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+              </span>
+              <span className="text-xs font-medium text-gray-700 leading-tight">{doc.title}</span>
+            </a>
+          ))}
+        </div>
+      </div>
+
       {/* AI-SATO-β から一言 */}
       {profile && (
         <div className="mt-8 bg-pink-50 rounded-xl border border-pink-200 p-4">
