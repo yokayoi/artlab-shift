@@ -7,6 +7,7 @@ import { getSchedule, getShift, getAllUsers, getMonthAttendances, adminEditAtten
 import { MonthSchedule, ShiftAssignment, UserProfile, Attendance } from "@/lib/types";
 import { parseMonthId, getSlotKey, formatDateShort, timestampToDatetimeLocal, datetimeLocalToTimestamp } from "@/lib/utils/dateCalc";
 import { Timestamp } from "firebase/firestore";
+import { DEMO_MONTH_ID } from "@/lib/utils/constants";
 
 interface SlotAttendance {
   slotKey: string;
@@ -131,6 +132,7 @@ export default function AdminAttendancePage({ params }: { params: Promise<{ mont
   };
 
   const { year, month } = parseMonthId(monthId);
+  const isDemo = monthId === DEMO_MONTH_ID;
 
   if (loading || dataLoading) {
     return (
@@ -146,7 +148,7 @@ export default function AdminAttendancePage({ params }: { params: Promise<{ mont
         ← ダッシュボード
       </button>
       <h1 className="text-xl font-bold text-gray-800 mb-6">
-        {year}年{month}月 出退勤管理
+        {isDemo ? "デモ" : `${year}年${month}月`} 出退勤管理
       </h1>
 
       {facilitators.length === 0 ? (

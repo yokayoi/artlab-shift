@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getSchedule, createSchedule, updateSchedule, updateScheduleStatus } from "@/lib/firebase/firestore";
 import { MonthSchedule, ClassType, DaySchedule } from "@/lib/types";
 import { generateDaySchedules, parseMonthId, formatDateShort, formatDeadline, generateDefaultSlots, getDeadlineDate } from "@/lib/utils/dateCalc";
-import { CLASS_TYPES, CLASS_TYPE_COLORS, TIME_SLOTS } from "@/lib/utils/constants";
+import { CLASS_TYPES, CLASS_TYPE_COLORS, TIME_SLOTS, DEMO_MONTH_ID } from "@/lib/utils/constants";
 
 export default function AdminScheduleSetupPage({ params }: { params: Promise<{ monthId: string }> }) {
   const { monthId } = use(params);
@@ -164,6 +164,7 @@ export default function AdminScheduleSetupPage({ params }: { params: Promise<{ m
   };
 
   const { year, month } = parseMonthId(monthId);
+  const isDemo = monthId === DEMO_MONTH_ID;
   const isDraft = !schedule || schedule.status === "draft";
 
   if (loading || dataLoading) {
@@ -180,7 +181,7 @@ export default function AdminScheduleSetupPage({ params }: { params: Promise<{ m
         ← ダッシュボード
       </button>
       <h1 className="text-xl font-bold text-gray-800 mb-2">
-        {year}年{month}月 スケジュール設定
+        {isDemo ? "デモ" : `${year}年${month}月`} スケジュール設定
       </h1>
 
       {/* Deadline setting */}

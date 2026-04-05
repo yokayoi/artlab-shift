@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getSchedule, getMonthAvailabilities, updateScheduleStatus, deleteSchedule, updateSchedule } from "@/lib/firebase/firestore";
 import { MonthSchedule } from "@/lib/types";
 import { formatMonthId, formatDeadline, parseMonthId } from "@/lib/utils/dateCalc";
-import { STATUS_LABELS, STATUS_COLORS, LAUNCH_YEAR, LAUNCH_MONTH } from "@/lib/utils/constants";
+import { STATUS_LABELS, STATUS_COLORS, LAUNCH_YEAR, LAUNCH_MONTH, DEMO_MONTH_ID } from "@/lib/utils/constants";
 
 interface MonthEntry {
   monthId: string;
@@ -34,6 +34,20 @@ export default function AdminPage() {
     (async () => {
       const now = new Date();
       const entries: MonthEntry[] = [];
+
+      // デモ月
+      const demoSchedule = await getSchedule(DEMO_MONTH_ID);
+      let demoResponseCount = 0;
+      if (demoSchedule && demoSchedule.status !== "draft") {
+        const avails = await getMonthAvailabilities(DEMO_MONTH_ID);
+        demoResponseCount = avails.length;
+      }
+      entries.push({
+        monthId: DEMO_MONTH_ID,
+        label: "デモ",
+        schedule: demoSchedule,
+        responseCount: demoResponseCount,
+      });
 
       for (let offset = -1; offset <= 3; offset++) {
         const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);

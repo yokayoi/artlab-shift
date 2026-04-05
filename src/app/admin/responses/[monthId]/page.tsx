@@ -4,9 +4,10 @@ import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
-import { getSchedule, getMonthAvailabilities, getAllUsers, saveAvailability } from "@/lib/firebase/firestore";
+import { getSchedule, getMonthAvailabilities, getAllUsers, saveAvailability, getFacilitators } from "@/lib/firebase/firestore";
 import { MonthSchedule, Availability, UserProfile } from "@/lib/types";
 import { getSlotKey, parseMonthId, formatDateShort } from "@/lib/utils/dateCalc";
+import { DEMO_MONTH_ID } from "@/lib/utils/constants";
 
 export default function AdminResponsesPage({ params }: { params: Promise<{ monthId: string }> }) {
   const { monthId } = use(params);
@@ -26,16 +27,43 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
   useEffect(() => {
     if (!user || !isAdmin) return;
     (async () => {
-      const [sched, avails, users] = await Promise.all([
+      const [sched, avails, users, facs] = await Promise.all([
         getSchedule(monthId),
         getMonthAvailabilities(monthId),
         getAllUsers(),
+        getFacilitators(),
       ]);
       setSchedule(sched);
-      setAvailabilities(avails);
       const map: Record<string, UserProfile> = {};
       users.forEach((u) => { map[u.uid] = u; });
       setUserMap(map);
+
+      // 未回答のファシリテーター（+管理者）も空の回答として追加
+      const respondedUids = new Set(avails.map((a) => a.facilitatorId));
+      const allFacs = [...avails];
+      const allStaff = [...facs, ...users.filter((u) => u.role === "admin")];
+      for (const fac of allStaff) {
+        if (!respondedUids.has(fac.uid)) {
+          const emptySlots: Record<string, boolean> = {};
+          if (sched) {
+            sched.days.forEach((day) =>
+              day.slots.forEach((slot) => {
+                if (slot.needsFacilitator && slot.classType) {
+                  emptySlots[getSlotKey(day.date, slot.time)] = false;
+                }
+              })
+            );
+          }
+          allFacs.push({
+            id: `${monthId}_${fac.uid}`,
+            monthId,
+            facilitatorId: fac.uid,
+            facilitatorName: fac.displayName,
+            slots: emptySlots,
+          } as Availability);
+        }
+      }
+      setAvailabilities(allFacs);
       setDataLoading(false);
     })();
   }, [user, isAdmin, monthId]);
@@ -63,6 +91,7 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
   };
 
   const { year, month } = parseMonthId(monthId);
+  const isDemo = monthId === DEMO_MONTH_ID;
 
   if (loading || dataLoading) {
     return (
@@ -103,7 +132,7 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
       </button>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold text-gray-800">
-          {year}年{month}月 回答一覧
+          {isDemo ? "デモ" : `${year}年${month}月`} 回答一覧
         </h1>
         <span className="text-sm text-gray-500">{availabilities.length}名回答済み</span>
       </div>

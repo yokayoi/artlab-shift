@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getSchedule, getShift, getAllUsers, getMonthAttendances } from "@/lib/firebase/firestore";
 import { MonthSchedule, ShiftAssignment, UserProfile, Attendance } from "@/lib/types";
 import { parseMonthId, getSlotKey, formatDateShort } from "@/lib/utils/dateCalc";
-import { CLASS_DURATION_MINUTES, getEffectiveRate } from "@/lib/utils/constants";
+import { CLASS_DURATION_MINUTES, getEffectiveRate, DEMO_MONTH_ID } from "@/lib/utils/constants";
 
 interface FacilitatorPayroll {
   uid: string;
@@ -62,6 +62,7 @@ export default function PayrollPage({ params }: { params: Promise<{ monthId: str
   }, [user, isAdmin, monthId]);
 
   const { year, month } = parseMonthId(monthId);
+  const isDemo = monthId === DEMO_MONTH_ID;
 
   if (loading || dataLoading) {
     return (
@@ -164,7 +165,7 @@ export default function PayrollPage({ params }: { params: Promise<{ monthId: str
         ← ダッシュボード
       </button>
       <h1 className="text-xl font-bold text-gray-800 mb-6">
-        {year}年{month}月 支払い計算
+        {isDemo ? "デモ" : `${year}年${month}月`} 支払い計算
       </h1>
 
       {/* Summary */}

@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getSchedule, getAvailability, saveAvailability, getShift, getActiveAnnouncements, getCollectingSchedules, getAttendance, checkIn as firestoreCheckIn, checkOut as firestoreCheckOut } from "@/lib/firebase/firestore";
 import { MonthSchedule, Availability, ShiftAssignment, Announcement, Attendance } from "@/lib/types";
 import { getSlotKey, parseMonthId, formatMonthId, formatDateShort, formatDeadline, isDeadlinePassed, getSlotDate, getTodayString, timestampToTimeString } from "@/lib/utils/dateCalc";
-import { CLASS_TYPE_COLORS, STATUS_LABELS, CLASS_DURATION_MINUTES, TRAINING_MAX, LAUNCH_YEAR, LAUNCH_MONTH, getTier, getNextTier, isTraining, getEffectiveRate } from "@/lib/utils/constants";
+import { CLASS_TYPE_COLORS, STATUS_LABELS, CLASS_DURATION_MINUTES, TRAINING_MAX, LAUNCH_YEAR, LAUNCH_MONTH, DEMO_MONTH_ID, getTier, getNextTier, isTraining, getEffectiveRate } from "@/lib/utils/constants";
 
 export default function FacilitatorSchedulePage({ params }: { params: Promise<{ monthId: string }> }) {
   const { monthId } = use(params);
@@ -128,6 +128,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
   };
 
   const { year, month } = parseMonthId(monthId);
+  const isDemo = monthId === DEMO_MONTH_ID;
   const prevMonth = month === 1 ? formatMonthId(year - 1, 12) : formatMonthId(year, month - 1);
   const nextMonth = month === 12 ? formatMonthId(year + 1, 1) : formatMonthId(year, month + 1);
   const isFirstMonth = year === LAUNCH_YEAR && month === LAUNCH_MONTH;
@@ -200,7 +201,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
           </button>
         )}
         <h1 className="text-xl font-bold text-gray-800">
-          {year}年{month}月
+          {isDemo ? "デモ" : `${year}年${month}月`}
         </h1>
         <button
           onClick={() => router.push(`/schedule/${nextMonth}`)}

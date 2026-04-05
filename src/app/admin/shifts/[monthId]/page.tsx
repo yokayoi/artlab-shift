@@ -13,7 +13,7 @@ import {
 } from "@/lib/firebase/firestore";
 import { MonthSchedule, Availability, UserProfile } from "@/lib/types";
 import { getSlotKey, parseMonthId, formatDateShort } from "@/lib/utils/dateCalc";
-import { CLASS_TYPE_COLORS } from "@/lib/utils/constants";
+import { CLASS_TYPE_COLORS, DEMO_MONTH_ID } from "@/lib/utils/constants";
 
 export default function AdminShiftsPage({ params }: { params: Promise<{ monthId: string }> }) {
   const { monthId } = use(params);
@@ -93,6 +93,7 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
   };
 
   const { year, month } = parseMonthId(monthId);
+  const isDemo = monthId === DEMO_MONTH_ID;
 
   if (loading || dataLoading) {
     return (
@@ -110,7 +111,7 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
         ← ダッシュボード
       </button>
       <h1 className="text-xl font-bold text-gray-800 mb-6">
-        {year}年{month}月 シフト割り当て
+        {isDemo ? "デモ" : `${year}年${month}月`} シフト割り当て
       </h1>
 
       <div className="space-y-4">
