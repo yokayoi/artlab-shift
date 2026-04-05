@@ -24,6 +24,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
   const [attendance, setAttendance] = useState<Attendance | null>(null);
   const [checkingIn, setCheckingIn] = useState<string | null>(null);
   const [animationModal, setAnimationModal] = useState<{ type: "checkin" | "checkout"; message: string } | null>(null);
+  const [sparkleKey, setSparkleKey] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -136,6 +137,8 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
   const handleDayCheckIn = async (dayKey: string) => {
     if (!user) return;
     setCheckingIn(dayKey);
+    setSparkleKey(dayKey);
+    setTimeout(() => setSparkleKey(null), 1200);
     try {
       await firestoreCheckIn(monthId, user.uid, dayKey);
       const updated = await getAttendance(monthId, user.uid);
@@ -152,6 +155,8 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
   const handleDayCheckOut = async (dayKey: string) => {
     if (!user) return;
     setCheckingIn(dayKey);
+    setSparkleKey(`out_${dayKey}`);
+    setTimeout(() => setSparkleKey(null), 1200);
     try {
       await firestoreCheckOut(monthId, user.uid, dayKey);
       const updated = await getAttendance(monthId, user.uid);
@@ -427,21 +432,29 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                       {/* Check-in/out buttons */}
                       {!hasCheckIn ? (
                         <div className="flex flex-col items-center py-2">
-                          <button
-                            onClick={() => handleDayCheckIn(dayKey)}
-                            disabled={isProcessing}
-                            className="w-28 h-28 rounded-full bg-green-500 hover:bg-green-600 active:scale-95 text-white font-bold text-base shadow-lg disabled:bg-gray-300 flex flex-col items-center justify-center transition-all"
-                            style={{ boxShadow: "0 4px 20px rgba(34, 197, 94, 0.4)" }}
-                          >
-                            {isProcessing ? (
-                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white" />
-                            ) : (
-                              <>
-                                <span className="text-2xl mb-0.5">IN</span>
-                                <span className="text-xs opacity-90">チェックイン</span>
-                              </>
+                          <div className="relative">
+                            <button
+                              onClick={() => handleDayCheckIn(dayKey)}
+                              disabled={isProcessing}
+                              className="w-28 h-28 rounded-full bg-green-500 hover:bg-green-600 active:scale-95 text-white font-bold text-base disabled:bg-gray-300 flex flex-col items-center justify-center transition-all"
+                            >
+                              {isProcessing ? (
+                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white" />
+                              ) : (
+                                <>
+                                  <span className="text-2xl mb-0.5">IN</span>
+                                  <span className="text-xs opacity-90">チェックイン</span>
+                                </>
+                              )}
+                            </button>
+                            {sparkleKey === dayKey && (
+                              <div className="sparkle-container">
+                                {[...Array(12)].map((_, i) => (
+                                  <span key={i} className="sparkle" style={{ '--i': i } as React.CSSProperties} />
+                                ))}
+                              </div>
                             )}
-                          </button>
+                          </div>
                         </div>
                       ) : !hasCheckOut ? (
                         <div className="space-y-4">
@@ -460,21 +473,29 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                             />
                           </div>
                           <div className="flex flex-col items-center py-2">
-                            <button
-                              onClick={() => handleDayCheckOut(dayKey)}
-                              disabled={isProcessing}
-                              className="w-28 h-28 rounded-full bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-bold text-base shadow-lg disabled:bg-gray-300 flex flex-col items-center justify-center transition-all"
-                              style={{ boxShadow: "0 4px 20px rgba(249, 115, 22, 0.4)" }}
-                            >
-                              {isProcessing ? (
-                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white" />
-                              ) : (
-                                <>
-                                  <span className="text-2xl mb-0.5">OUT</span>
-                                  <span className="text-xs opacity-90">チェックアウト</span>
-                                </>
+                            <div className="relative">
+                              <button
+                                onClick={() => handleDayCheckOut(dayKey)}
+                                disabled={isProcessing}
+                                className="w-28 h-28 rounded-full bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-bold text-base disabled:bg-gray-300 flex flex-col items-center justify-center transition-all"
+                              >
+                                {isProcessing ? (
+                                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white" />
+                                ) : (
+                                  <>
+                                    <span className="text-2xl mb-0.5">OUT</span>
+                                    <span className="text-xs opacity-90">チェックアウト</span>
+                                  </>
+                                )}
+                              </button>
+                              {sparkleKey === `out_${dayKey}` && (
+                                <div className="sparkle-container">
+                                  {[...Array(12)].map((_, i) => (
+                                    <span key={i} className="sparkle" style={{ '--i': i } as React.CSSProperties} />
+                                  ))}
+                                </div>
                               )}
-                            </button>
+                            </div>
                           </div>
                         </div>
                       ) : (
@@ -781,7 +802,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
         >
           <div className="absolute inset-0 bg-black/30" />
           <div
-            className="relative bg-white rounded-2xl p-6 mx-6 max-w-sm w-full shadow-2xl"
+            className="relative bg-white rounded-2xl p-6 mx-6 max-w-sm w-full"
             style={{ animation: "bounceIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)" }}
           >
             <div className="flex flex-col items-center text-center">
@@ -831,6 +852,49 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
           0% { transform: scale(1); }
           50% { transform: scale(1.15); }
           100% { transform: scale(1); }
+        }
+        .sparkle-container {
+          position: absolute;
+          inset: -20px;
+          pointer-events: none;
+        }
+        .sparkle {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: gold;
+          animation: sparkleOut 1s ease-out forwards;
+          animation-delay: calc(var(--i) * 0.05s);
+          opacity: 0;
+        }
+        .sparkle:nth-child(odd) {
+          background: #fbbf24;
+          width: 4px;
+          height: 4px;
+        }
+        .sparkle:nth-child(3n) {
+          background: #f472b6;
+          width: 5px;
+          height: 5px;
+        }
+        .sparkle:nth-child(4n+1) {
+          background: #60a5fa;
+        }
+        @keyframes sparkleOut {
+          0% {
+            opacity: 1;
+            transform: translate(-50%, -50%) rotate(calc(var(--i) * 30deg)) translateY(0);
+          }
+          60% {
+            opacity: 1;
+          }
+          100% {
+            opacity: 0;
+            transform: translate(-50%, -50%) rotate(calc(var(--i) * 30deg)) translateY(-70px);
+          }
         }
       `}</style>
     </div>
