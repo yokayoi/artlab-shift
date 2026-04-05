@@ -26,7 +26,7 @@ export const CLASS_DURATION_MINUTES = 70;
 
 // アプリのリリース開始月（これより前の月は表示しない）
 export const LAUNCH_YEAR = 2026;
-export const LAUNCH_MONTH = 4; // 4月
+export const LAUNCH_MONTH = 3; // 3月（デモ用に変更）
 
 export const TRAINING_MAX = 3;
 export const TRAINING_HOURLY_RATE = 1000;
