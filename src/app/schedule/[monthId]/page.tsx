@@ -424,26 +424,6 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                   {/* Per-day Check-in/out (shown below the slot grid) */}
                   {myDaySlots.length > 0 && (
                     <div className="border-t border-gray-200 bg-brand-50/50 p-4">
-                      {/* My assigned class list */}
-                      <div className="mb-3">
-                        <div className="text-xs text-gray-500 mb-1.5">担当クラス</div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {myDaySlots.map((s) => {
-                            const colors = s.classType ? CLASS_TYPE_COLORS[s.classType] : null;
-                            return (
-                              <span key={s.time} className="inline-flex items-center gap-1 text-xs bg-white border border-gray-200 rounded-lg px-2 py-1">
-                                <span className="text-gray-700 font-medium">{s.time}</span>
-                                {colors && (
-                                  <span className="text-[10px] px-1 py-0.5 rounded" style={{ backgroundColor: colors.bg, color: colors.text }}>
-                                    {s.classType}
-                                  </span>
-                                )}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      </div>
-
                       {/* Check-in/out buttons */}
                       {!hasCheckIn ? (
                         <div className="flex flex-col items-center py-2">
