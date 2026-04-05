@@ -268,6 +268,17 @@ export async function checkOut(monthId: string, uid: string, slotKey: string) {
   }
 }
 
+export async function resetDayAttendance(monthId: string, uid: string, dayKey: string) {
+  const docId = `${monthId}_${uid}`;
+  const snap = await getDoc(doc(getFirebaseDb(), "attendance", docId));
+  if (snap.exists()) {
+    const data = snap.data() as Attendance;
+    const records = { ...data.records };
+    delete records[dayKey];
+    await updateDoc(doc(getFirebaseDb(), "attendance", docId), { records, updatedAt: Timestamp.now() });
+  }
+}
+
 export async function editMyAttendanceTime(
   monthId: string,
   uid: string,
