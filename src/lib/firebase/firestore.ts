@@ -268,6 +268,31 @@ export async function checkOut(monthId: string, uid: string, slotKey: string) {
   }
 }
 
+export async function editMyAttendanceTime(
+  monthId: string,
+  uid: string,
+  dayKey: string,
+  field: "checkIn" | "checkOut",
+  time: Timestamp
+) {
+  const docId = `${monthId}_${uid}`;
+  const now = Timestamp.now();
+  const snap = await getDoc(doc(getFirebaseDb(), "attendance", docId));
+  if (snap.exists()) {
+    const data = snap.data() as Attendance;
+    const records = { ...data.records };
+    records[dayKey] = { ...records[dayKey], [field]: time };
+    await updateDoc(doc(getFirebaseDb(), "attendance", docId), { records, updatedAt: now });
+  } else {
+    await setDoc(doc(getFirebaseDb(), "attendance", docId), {
+      monthId,
+      facilitatorId: uid,
+      records: { [dayKey]: { checkIn: field === "checkIn" ? time : null, checkOut: field === "checkOut" ? time : null } },
+      updatedAt: now,
+    });
+  }
+}
+
 export async function adminEditAttendance(
   monthId: string,
   facilitatorId: string,

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { getSchedule, getShift, getAllUsers, getMonthAttendances } from "@/lib/firebase/firestore";
 import { MonthSchedule, ShiftAssignment, UserProfile, Attendance } from "@/lib/types";
-import { parseMonthId, getSlotKey, formatDateShort } from "@/lib/utils/dateCalc";
+import { parseMonthId, getSlotKey, formatDateShort, getSlotDate } from "@/lib/utils/dateCalc";
 import { CLASS_DURATION_MINUTES, getEffectiveRate, DEMO_MONTH_ID } from "@/lib/utils/constants";
 
 interface FacilitatorPayroll {
@@ -98,8 +98,11 @@ export default function PayrollPage({ params }: { params: Promise<{ monthId: str
 
   // Calculate payroll per facilitator
   const payrollMap = new Map<string, FacilitatorPayroll>();
+  // Track slots grouped by day per facilitator
+  const facDaySlots: Record<string, Record<string, string[]>> = {};
 
   for (const [slotKey, uids] of Object.entries(shift.assignments)) {
+    const dayKey = getSlotDate(slotKey);
     for (const uid of uids) {
       if (!payrollMap.has(uid)) {
         const userProfile = users.find((u) => u.uid === uid);
@@ -127,19 +130,34 @@ export default function PayrollPage({ params }: { params: Promise<{ monthId: str
       const entry = payrollMap.get(uid)!;
       entry.slotCount += 1;
       entry.totalMinutes += CLASS_DURATION_MINUTES;
+      entry.slots.push({ label: slotLabels[slotKey] || slotKey, key: slotKey, attendanceMin: null });
 
+      // Track day grouping
+      if (!facDaySlots[uid]) facDaySlots[uid] = {};
+      if (!facDaySlots[uid][dayKey]) facDaySlots[uid][dayKey] = [];
+      facDaySlots[uid][dayKey].push(slotKey);
+    }
+  }
+
+  // Calculate actual minutes per facilitator using day-level attendance
+  for (const [uid, entry] of payrollMap.entries()) {
+    entry.actualMinutes = 0;
+    const days = facDaySlots[uid] || {};
+    for (const [dayKey, daySlots] of Object.entries(days)) {
       const att = attendanceMap.get(uid);
-      const record = att?.records?.[slotKey];
-      let attendanceMin: number | null = null;
+      const record = att?.records?.[dayKey];
       if (record?.checkIn && record?.checkOut) {
-        attendanceMin = Math.round((record.checkOut.toDate().getTime() - record.checkIn.toDate().getTime()) / 60000);
+        const dayMin = Math.round((record.checkOut.toDate().getTime() - record.checkIn.toDate().getTime()) / 60000);
+        entry.actualMinutes += dayMin;
         entry.hasAttendance = true;
-        entry.actualMinutes += attendanceMin;
+        // Update slot display info for this day
+        daySlots.forEach((sk) => {
+          const s = entry.slots.find((x) => x.key === sk);
+          if (s) s.attendanceMin = dayMin;
+        });
       } else {
-        entry.actualMinutes += CLASS_DURATION_MINUTES;
+        entry.actualMinutes += daySlots.length * CLASS_DURATION_MINUTES;
       }
-
-      entry.slots.push({ label: slotLabels[slotKey] || slotKey, key: slotKey, attendanceMin });
     }
   }
 
@@ -229,7 +247,7 @@ export default function PayrollPage({ params }: { params: Promise<{ monthId: str
                 <div className="flex flex-wrap gap-1">
                   {p.slots.map((s) => (
                     <span key={s.key} className="text-xs bg-white border border-gray-200 rounded px-2 py-0.5 text-gray-600">
-                      {s.label}{s.attendanceMin !== null ? ` (${s.attendanceMin}分)` : ""}
+                      {s.label}
                     </span>
                   ))}
                 </div>

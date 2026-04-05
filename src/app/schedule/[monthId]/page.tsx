@@ -3,9 +3,9 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { getSchedule, getAvailability, saveAvailability, getShift, saveShift, getActiveAnnouncements, getCollectingSchedules, getAttendance, checkIn as firestoreCheckIn, checkOut as firestoreCheckOut } from "@/lib/firebase/firestore";
+import { getSchedule, getAvailability, saveAvailability, getShift, saveShift, getActiveAnnouncements, getCollectingSchedules, getAttendance, checkIn as firestoreCheckIn, checkOut as firestoreCheckOut, editMyAttendanceTime } from "@/lib/firebase/firestore";
 import { MonthSchedule, Availability, ShiftAssignment, Announcement, Attendance } from "@/lib/types";
-import { getSlotKey, parseMonthId, formatMonthId, formatDateShort, formatDeadline, isDeadlinePassed, getSlotDate, getTodayString, timestampToTimeString } from "@/lib/utils/dateCalc";
+import { getSlotKey, parseMonthId, formatMonthId, formatDateShort, formatDeadline, isDeadlinePassed, getSlotDate, getTodayString, timestampToTimeString, datetimeLocalToTimestamp, timestampToDatetimeLocal } from "@/lib/utils/dateCalc";
 import { CLASS_TYPE_COLORS, STATUS_LABELS, CLASS_DURATION_MINUTES, TRAINING_MAX, LAUNCH_YEAR, LAUNCH_MONTH, DEMO_MONTH_ID, getTier, getNextTier, isTraining, getEffectiveRate } from "@/lib/utils/constants";
 
 export default function FacilitatorSchedulePage({ params }: { params: Promise<{ monthId: string }> }) {
@@ -23,6 +23,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
   const [satokoMsg, setSatokoMsg] = useState<string>("");
   const [attendance, setAttendance] = useState<Attendance | null>(null);
   const [checkingIn, setCheckingIn] = useState<string | null>(null);
+  const [animationModal, setAnimationModal] = useState<{ type: "checkin" | "checkout"; message: string } | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -114,30 +115,66 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
       .catch(() => setSatokoMsg(`${name}さん、今日もアートで世界を広げよう！`));
   }, [profile]);
 
-  const handleCheckIn = async (slotKey: string) => {
-    if (!user) return;
-    setCheckingIn(slotKey);
+  const fetchSatokoMessage = async (type: "checkin" | "checkout") => {
+    if (!profile) return "";
+    const name = profile.nickname || profile.displayName.split(" ")[0];
     try {
-      await firestoreCheckIn(monthId, user.uid, slotKey);
+      const res = await fetch("/api/satoko", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, classCount: profile.classCount || 0, type }),
+      });
+      const data = await res.json();
+      return data.message || "";
+    } catch {
+      return type === "checkin"
+        ? `${name}さん、今日もよろしくね！`
+        : `${name}さん、おつかれさま！`;
+    }
+  };
+
+  const handleDayCheckIn = async (dayKey: string) => {
+    if (!user) return;
+    setCheckingIn(dayKey);
+    try {
+      await firestoreCheckIn(monthId, user.uid, dayKey);
       const updated = await getAttendance(monthId, user.uid);
       setAttendance(updated);
-    } catch (e) {
+      const msg = await fetchSatokoMessage("checkin");
+      setAnimationModal({ type: "checkin", message: msg });
+      setTimeout(() => setAnimationModal(null), 4000);
+    } catch {
       alert("チェックインに失敗しました。管理者に連絡してください。");
     }
     setCheckingIn(null);
   };
 
-  const handleCheckOut = async (slotKey: string) => {
+  const handleDayCheckOut = async (dayKey: string) => {
     if (!user) return;
-    setCheckingIn(slotKey);
+    setCheckingIn(dayKey);
     try {
-      await firestoreCheckOut(monthId, user.uid, slotKey);
+      await firestoreCheckOut(monthId, user.uid, dayKey);
       const updated = await getAttendance(monthId, user.uid);
       setAttendance(updated);
-    } catch (e) {
+      const msg = await fetchSatokoMessage("checkout");
+      setAnimationModal({ type: "checkout", message: msg });
+      setTimeout(() => setAnimationModal(null), 4000);
+    } catch {
       alert("チェックアウトに失敗しました。管理者に連絡してください。");
     }
     setCheckingIn(null);
+  };
+
+  const handleEditTime = async (dayKey: string, field: "checkIn" | "checkOut", value: string) => {
+    if (!user || !value) return;
+    try {
+      const ts = datetimeLocalToTimestamp(value);
+      await editMyAttendanceTime(monthId, user.uid, dayKey, field, ts);
+      const updated = await getAttendance(monthId, user.uid);
+      setAttendance(updated);
+    } catch {
+      alert("時間の更新に失敗しました。");
+    }
   };
 
   const toggleSlot = (key: string) => {
@@ -196,9 +233,10 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
           <div className="text-sm text-blue-700 space-y-1">
             <p>このページではシフト管理アプリの主要機能を体験できます。</p>
             <ul className="list-disc list-inside text-xs space-y-0.5 mt-2">
-              <li>下のシフト一覧から<b>チェックイン</b>ボタンで出勤を記録</li>
-              <li>チェックイン後に<b>チェックアウト</b>で退勤を記録</li>
-              <li>実績時間が自動で計算され、給与に反映されます</li>
+              <li>各日の大きな<b>INボタン</b>でチェックイン（出勤記録）</li>
+              <li>チェックイン後に<b>OUTボタン</b>でチェックアウト（退勤記録）</li>
+              <li>記録した時間は<b>編集可能</b>です</li>
+              <li>AI-SATO-β がメッセージで応援します</li>
               <li>ページ下部で<b>時給・給与</b>の確認ができます</li>
             </ul>
           </div>
@@ -371,66 +409,166 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
             </div>
           )}
 
-          {/* Published Shift Summary with Check-in/out */}
+          {/* Published Shift Summary with Day Check-in/out */}
           {isPublished && shift && (() => {
-            const mySlots = schedule.days.flatMap((day) =>
-              day.slots
-                .filter((slot) => {
-                  const key = getSlotKey(day.date, slot.time);
-                  return shift.assignments?.[key]?.includes(user?.uid || "");
-                })
-                .map((slot) => ({ day, slot, key: getSlotKey(day.date, slot.time) }))
-            );
-            if (mySlots.length === 0) return null;
+            // Group my assigned slots by day
+            const mySlotsByDay: Record<string, { date: string; dayLabel: string; slots: { time: string; classType: string | null }[] }> = {};
+            schedule.days.forEach((day) => {
+              day.slots.forEach((slot) => {
+                const key = getSlotKey(day.date, slot.time);
+                if (shift.assignments?.[key]?.includes(user?.uid || "")) {
+                  if (!mySlotsByDay[day.date]) {
+                    mySlotsByDay[day.date] = { date: day.date, dayLabel: day.dayLabel, slots: [] };
+                  }
+                  mySlotsByDay[day.date].slots.push({ time: slot.time, classType: slot.classType });
+                }
+              });
+            });
+            const days = Object.values(mySlotsByDay);
+            if (days.length === 0) return null;
             return (
-              <div className="mt-6 bg-brand-50 rounded-xl p-4">
+              <div className="mt-6">
                 <h3 className="font-medium text-brand-800 mb-3">あなたのシフト</h3>
-                <div className="space-y-3">
-                  {mySlots.map(({ day, slot, key }) => {
-                    const record = attendance?.records?.[key];
+                <div className="space-y-4">
+                  {days.map((dayData) => {
+                    const dayKey = dayData.date;
+                    const record = attendance?.records?.[dayKey];
                     const hasCheckIn = !!record?.checkIn;
                     const hasCheckOut = !!record?.checkOut;
-                    const isProcessing = checkingIn === key;
+                    const isProcessing = checkingIn === dayKey;
                     let durationMin = 0;
                     if (record?.checkIn && record?.checkOut) {
                       durationMin = Math.round((record.checkOut.toDate().getTime() - record.checkIn.toDate().getTime()) / 60000);
                     }
+                    const durationHours = Math.floor(durationMin / 60);
+                    const durationRemainder = durationMin % 60;
+
                     return (
-                      <div key={key} className="bg-white rounded-lg p-3 border border-brand-100">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="text-sm font-medium text-brand-700">
-                            {formatDateShort(day.date)} {slot.time} {slot.classType || ""}
+                      <div key={dayKey} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                        <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                          <span className="font-medium text-gray-700">{formatDateShort(dayData.date)}</span>
+                          <span className="text-sm text-gray-500 ml-2">{dayData.dayLabel}</span>
+                        </div>
+                        <div className="p-4">
+                          {/* Class time slot list */}
+                          <div className="mb-4">
+                            <div className="text-xs text-gray-500 mb-2">担当クラス</div>
+                            <div className="space-y-1.5">
+                              {dayData.slots.map((s) => {
+                                const colors = s.classType ? CLASS_TYPE_COLORS[s.classType] : null;
+                                return (
+                                  <div key={s.time} className="flex items-center gap-2">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-brand-500 shrink-0" />
+                                    <span className="text-sm text-gray-700">{s.time}</span>
+                                    {colors && (
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: colors.bg, color: colors.text }}>
+                                        {s.classType}
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
+
+                          {/* Check-in/out section */}
+                          {!hasCheckIn ? (
+                            <div className="flex flex-col items-center py-2">
+                              <button
+                                onClick={() => handleDayCheckIn(dayKey)}
+                                disabled={isProcessing}
+                                className="w-28 h-28 rounded-full bg-green-500 hover:bg-green-600 active:scale-95 text-white font-bold text-base shadow-lg disabled:bg-gray-300 flex flex-col items-center justify-center transition-all"
+                                style={{ boxShadow: "0 4px 20px rgba(34, 197, 94, 0.4)" }}
+                              >
+                                {isProcessing ? (
+                                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white" />
+                                ) : (
+                                  <>
+                                    <span className="text-2xl mb-0.5">IN</span>
+                                    <span className="text-xs opacity-90">チェックイン</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          ) : !hasCheckOut ? (
+                            <div className="space-y-4">
+                              <div className="flex items-center justify-center gap-3">
+                                <span className="text-sm text-gray-500 font-medium">IN</span>
+                                <input
+                                  type="time"
+                                  value={timestampToTimeString(record!.checkIn!)}
+                                  onChange={(e) => {
+                                    const [h, m] = e.target.value.split(":");
+                                    const d = record!.checkIn!.toDate();
+                                    d.setHours(parseInt(h), parseInt(m));
+                                    handleEditTime(dayKey, "checkIn", timestampToDatetimeLocal({ toDate: () => d } as any));
+                                  }}
+                                  className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                />
+                              </div>
+                              <div className="flex flex-col items-center py-2">
+                                <button
+                                  onClick={() => handleDayCheckOut(dayKey)}
+                                  disabled={isProcessing}
+                                  className="w-28 h-28 rounded-full bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-bold text-base shadow-lg disabled:bg-gray-300 flex flex-col items-center justify-center transition-all"
+                                  style={{ boxShadow: "0 4px 20px rgba(249, 115, 22, 0.4)" }}
+                                >
+                                  {isProcessing ? (
+                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white" />
+                                  ) : (
+                                    <>
+                                      <span className="text-2xl mb-0.5">OUT</span>
+                                      <span className="text-xs opacity-90">チェックアウト</span>
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-center gap-4">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm text-green-600 font-medium">IN</span>
+                                  <input
+                                    type="time"
+                                    value={timestampToTimeString(record!.checkIn!)}
+                                    onChange={(e) => {
+                                      const [h, m] = e.target.value.split(":");
+                                      const d = record!.checkIn!.toDate();
+                                      d.setHours(parseInt(h), parseInt(m));
+                                      handleEditTime(dayKey, "checkIn", timestampToDatetimeLocal({ toDate: () => d } as any));
+                                    }}
+                                    className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                                  />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm text-orange-600 font-medium">OUT</span>
+                                  <input
+                                    type="time"
+                                    value={timestampToTimeString(record!.checkOut!)}
+                                    onChange={(e) => {
+                                      const [h, m] = e.target.value.split(":");
+                                      const d = record!.checkOut!.toDate();
+                                      d.setHours(parseInt(h), parseInt(m));
+                                      handleEditTime(dayKey, "checkOut", timestampToDatetimeLocal({ toDate: () => d } as any));
+                                    }}
+                                    className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                  />
+                                </div>
+                              </div>
+                              <div className="text-center">
+                                <span className="text-lg font-bold text-brand-700">
+                                  実働 {durationHours > 0 ? `${durationHours}時間` : ""}{durationRemainder}分
+                                </span>
+                              </div>
+                            </div>
+                          )}
                           {record?.editedBy && (
-                            <span className="text-[10px] text-gray-400">(管理者編集)</span>
+                            <div className="text-center mt-2">
+                              <span className="text-[10px] text-gray-400">(管理者編集あり)</span>
+                            </div>
                           )}
                         </div>
-                        {hasCheckIn && hasCheckOut ? (
-                          <div className="flex items-center gap-3 text-xs text-gray-600">
-                            <span>IN {timestampToTimeString(record!.checkIn!)}</span>
-                            <span>OUT {timestampToTimeString(record!.checkOut!)}</span>
-                            <span className="font-medium text-brand-600">{durationMin}分</span>
-                          </div>
-                        ) : hasCheckIn && !hasCheckOut ? (
-                          <div className="flex items-center gap-3">
-                            <span className="text-xs text-gray-600">IN {timestampToTimeString(record!.checkIn!)}</span>
-                            <button
-                              onClick={() => handleCheckOut(key)}
-                              disabled={isProcessing}
-                              className="px-3 py-1 text-xs rounded-lg font-medium text-white bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300"
-                            >
-                              {isProcessing ? "..." : "チェックアウト"}
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => handleCheckIn(key)}
-                            disabled={isProcessing}
-                            className="px-3 py-1 text-xs rounded-lg font-medium text-white bg-green-500 hover:bg-green-600 disabled:bg-gray-300"
-                          >
-                            {isProcessing ? "..." : "チェックイン"}
-                          </button>
-                        )}
                       </div>
                     );
                   })}
@@ -577,18 +715,25 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
         const trainingRate = classCount >= 1 && classCount <= TRAINING_MAX;
         const transportCost = profile.transportCost || 0;
 
-        // Calculate actual minutes from attendance
+        // Group slots by day and calculate actual minutes from day-level attendance
+        const slotsByDay: Record<string, string[]> = {};
+        mySlots.forEach((key) => {
+          const dayKey = getSlotDate(key);
+          if (!slotsByDay[dayKey]) slotsByDay[dayKey] = [];
+          slotsByDay[dayKey].push(key);
+        });
+
         let actualMinutes = 0;
         let hasAttendance = false;
-        mySlots.forEach((key) => {
-          const record = attendance?.records?.[key];
+        for (const [dayKey, daySlots] of Object.entries(slotsByDay)) {
+          const record = attendance?.records?.[dayKey];
           if (record?.checkIn && record?.checkOut) {
             actualMinutes += Math.round((record.checkOut.toDate().getTime() - record.checkIn.toDate().getTime()) / 60000);
             hasAttendance = true;
           } else {
-            actualMinutes += CLASS_DURATION_MINUTES;
+            actualMinutes += daySlots.length * CLASS_DURATION_MINUTES;
           }
-        });
+        }
 
         const scheduledMinutes = mySlots.length * CLASS_DURATION_MINUTES;
         const displayMinutes = hasAttendance ? actualMinutes : scheduledMinutes;
@@ -648,6 +793,68 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
           </div>
         );
       })()}
+
+      {/* AI-SATO-β Animation Modal */}
+      {animationModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          onClick={() => setAnimationModal(null)}
+          style={{ animation: "fadeIn 0.3s ease-out" }}
+        >
+          <div className="absolute inset-0 bg-black/30" />
+          <div
+            className="relative bg-white rounded-2xl p-6 mx-6 max-w-sm w-full shadow-2xl"
+            style={{ animation: "bounceIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)" }}
+          >
+            <div className="flex flex-col items-center text-center">
+              {/* Confetti-like decorations */}
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-3xl" style={{ animation: "bounceIn 0.6s ease-out" }}>
+                {animationModal.type === "checkin" ? "🎨" : "🌟"}
+              </div>
+              <div className="mt-4 mb-3">
+                <div
+                  className={`w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-bold ${
+                    animationModal.type === "checkin" ? "bg-green-500" : "bg-orange-500"
+                  }`}
+                  style={{ animation: "pulse 1s ease-in-out" }}
+                >
+                  {animationModal.type === "checkin" ? "IN" : "OUT"}
+                </div>
+              </div>
+              <div className="text-lg font-bold text-gray-800 mb-3">
+                {animationModal.type === "checkin" ? "チェックイン完了！" : "チェックアウト完了！"}
+              </div>
+              <div className="flex items-start gap-3 bg-pink-50 rounded-xl p-3 w-full">
+                <img src="/sato.png" alt="AI-SATO-β" className="rounded-full object-cover shrink-0" style={{ width: 40, height: 40 }} />
+                <div className="text-left">
+                  <div className="text-[10px] font-medium text-pink-600 mb-0.5">AI-SATO-β</div>
+                  <p className="text-sm text-gray-700">{animationModal.message}</p>
+                </div>
+              </div>
+              <div className="mt-3 text-xs text-gray-400">タップして閉じる</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Animation Keyframes */}
+      <style jsx>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes bounceIn {
+          0% { opacity: 0; transform: scale(0.3); }
+          50% { opacity: 1; transform: scale(1.05); }
+          70% { transform: scale(0.95); }
+          100% { transform: scale(1); }
+        }
+        @keyframes pulse {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.15); }
+          100% { transform: scale(1); }
+        }
+      `}</style>
     </div>
   );
 }
