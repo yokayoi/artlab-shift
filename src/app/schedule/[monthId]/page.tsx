@@ -189,6 +189,22 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
         </button>
       </div>
 
+      {/* Demo Guide */}
+      {isDemo && (
+        <div className="mb-4 bg-blue-50 border border-blue-200 rounded-xl px-4 py-4">
+          <div className="text-sm font-medium text-blue-800 mb-2">デモ版について</div>
+          <div className="text-sm text-blue-700 space-y-1">
+            <p>このページではシフト管理アプリの主要機能を体験できます。</p>
+            <ul className="list-disc list-inside text-xs space-y-0.5 mt-2">
+              <li>下のシフト一覧から<b>チェックイン</b>ボタンで出勤を記録</li>
+              <li>チェックイン後に<b>チェックアウト</b>で退勤を記録</li>
+              <li>実績時間が自動で計算され、給与に反映されます</li>
+              <li>ページ下部で<b>時給・給与</b>の確認ができます</li>
+            </ul>
+          </div>
+        </div>
+      )}
+
       {/* Announcements */}
       {announcements.length > 0 && (
         <div className="mb-4 space-y-2">
