@@ -74,6 +74,28 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
     });
   };
 
+  const handleAssignAll = () => {
+    if (!schedule) return;
+    const newAssignments: Record<string, string[]> = { ...assignments };
+    const newNames: Record<string, string[]> = { ...assignmentNames };
+    schedule.days.forEach((day) => {
+      day.slots.forEach((slot) => {
+        if (!slot.needsFacilitator || !slot.classType) return;
+        const slotKey = getSlotKey(day.date, slot.time);
+        const available = availabilities.filter((a) => a.slots[slotKey]);
+        newAssignments[slotKey] = available.map((a) => a.facilitatorId);
+        newNames[slotKey] = available.map((a) => getName(a.facilitatorId, a.facilitatorName));
+      });
+    });
+    setAssignments(newAssignments);
+    setAssignmentNames(newNames);
+  };
+
+  const handleClearAll = () => {
+    setAssignments({});
+    setAssignmentNames({});
+  };
+
   const handleSave = async () => {
     if (!user) return;
     setSaving(true);
@@ -110,9 +132,25 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
       <button onClick={() => router.push("/admin")} className="text-sm text-brand-600 mb-4 inline-block">
         ← ダッシュボード
       </button>
-      <h1 className="text-xl font-bold text-gray-800 mb-6">
-        {isDemo ? "デモ" : `${year}年${month}月`} シフト割り当て
-      </h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-xl font-bold text-gray-800">
+          {isDemo ? "デモ" : `${year}年${month}月`} シフト割り当て
+        </h1>
+        <div className="flex gap-2">
+          <button
+            onClick={handleAssignAll}
+            className="px-3 py-1.5 text-xs font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700"
+          >
+            全て割り当て
+          </button>
+          <button
+            onClick={handleClearAll}
+            className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+          >
+            全て解除
+          </button>
+        </div>
+      </div>
 
       <div className="space-y-4">
         {schedule.days.map((day) => {
