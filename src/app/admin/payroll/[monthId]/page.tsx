@@ -43,16 +43,20 @@ export default function PayrollPage({ params }: { params: Promise<{ monthId: str
   useEffect(() => {
     if (!user || !isAdmin) return;
     (async () => {
-      const [sched, shiftData, allUsers, attData] = await Promise.all([
+      const [sched, shiftData, allUsers] = await Promise.all([
         getSchedule(monthId),
         getShift(monthId),
         getAllUsers(),
-        getMonthAttendances(monthId),
       ]);
+      try {
+        const attData = await getMonthAttendances(monthId);
+        setAttendances(attData);
+      } catch {
+        // attendance collection may not have rules deployed yet
+      }
       setSchedule(sched);
       setShift(shiftData);
       setUsers(allUsers);
-      setAttendances(attData);
       setDataLoading(false);
     })();
   }, [user, isAdmin, monthId]);

@@ -41,12 +41,17 @@ export default function AdminAttendancePage({ params }: { params: Promise<{ mont
   useEffect(() => {
     if (!user || !isAdmin) return;
     (async () => {
-      const [sched, shiftData, allUsers, attendances] = await Promise.all([
+      const [sched, shiftData, allUsers] = await Promise.all([
         getSchedule(monthId),
         getShift(monthId),
         getAllUsers(),
-        getMonthAttendances(monthId),
       ]);
+      let attendances: Attendance[] = [];
+      try {
+        attendances = await getMonthAttendances(monthId);
+      } catch {
+        // attendance collection may not have rules deployed yet
+      }
       setSchedule(sched);
       setShift(shiftData);
       setUsers(allUsers);

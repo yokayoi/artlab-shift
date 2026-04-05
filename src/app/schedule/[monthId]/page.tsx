@@ -33,15 +33,19 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const [sched, avail, shiftData, attendanceData] = await Promise.all([
+      const [sched, avail, shiftData] = await Promise.all([
         getSchedule(monthId),
         getAvailability(monthId, user.uid),
         getShift(monthId),
-        getAttendance(monthId, user.uid),
       ]);
       setSchedule(sched);
       setShift(shiftData);
-      setAttendance(attendanceData);
+      try {
+        const attendanceData = await getAttendance(monthId, user.uid);
+        setAttendance(attendanceData);
+      } catch {
+        // attendance collection may not have rules deployed yet
+      }
       try {
         const [anns, collectingScheds] = await Promise.all([
           getActiveAnnouncements(),
@@ -87,18 +91,26 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
   const handleCheckIn = async (slotKey: string) => {
     if (!user) return;
     setCheckingIn(slotKey);
-    await firestoreCheckIn(monthId, user.uid, slotKey);
-    const updated = await getAttendance(monthId, user.uid);
-    setAttendance(updated);
+    try {
+      await firestoreCheckIn(monthId, user.uid, slotKey);
+      const updated = await getAttendance(monthId, user.uid);
+      setAttendance(updated);
+    } catch (e) {
+      alert("チェックインに失敗しました。管理者に連絡してください。");
+    }
     setCheckingIn(null);
   };
 
   const handleCheckOut = async (slotKey: string) => {
     if (!user) return;
     setCheckingIn(slotKey);
-    await firestoreCheckOut(monthId, user.uid, slotKey);
-    const updated = await getAttendance(monthId, user.uid);
-    setAttendance(updated);
+    try {
+      await firestoreCheckOut(monthId, user.uid, slotKey);
+      const updated = await getAttendance(monthId, user.uid);
+      setAttendance(updated);
+    } catch (e) {
+      alert("チェックアウトに失敗しました。管理者に連絡してください。");
+    }
     setCheckingIn(null);
   };
 
