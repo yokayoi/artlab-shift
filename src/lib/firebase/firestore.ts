@@ -21,6 +21,9 @@ import {
   MonthStatus,
   DaySchedule,
   Announcement,
+  BankAccount,
+  Attendance,
+  AttendanceRecord,
 } from "../types";
 
 // ===== Users =====
@@ -218,6 +221,83 @@ export async function getSatokoMessage(): Promise<string> {
 
 export async function setSatokoMessage(body: string) {
   await setDoc(doc(getFirebaseDb(), "settings", "satokoMessage"), { body, updatedAt: Timestamp.now() });
+}
+
+// ===== Attendance =====
+
+export async function getAttendance(monthId: string, uid: string): Promise<Attendance | null> {
+  const docId = `${monthId}_${uid}`;
+  const snap = await getDoc(doc(getFirebaseDb(), "attendance", docId));
+  return snap.exists() ? ({ id: snap.id, ...snap.data() } as Attendance) : null;
+}
+
+export async function getMonthAttendances(monthId: string): Promise<Attendance[]> {
+  const q = query(collection(getFirebaseDb(), "attendance"), where("monthId", "==", monthId));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Attendance));
+}
+
+export async function checkIn(monthId: string, uid: string, slotKey: string) {
+  const docId = `${monthId}_${uid}`;
+  const now = Timestamp.now();
+  const snap = await getDoc(doc(getFirebaseDb(), "attendance", docId));
+  if (snap.exists()) {
+    const data = snap.data() as Attendance;
+    const records = { ...data.records };
+    records[slotKey] = { checkIn: now, checkOut: records[slotKey]?.checkOut || null };
+    await updateDoc(doc(getFirebaseDb(), "attendance", docId), { records, updatedAt: now });
+  } else {
+    await setDoc(doc(getFirebaseDb(), "attendance", docId), {
+      monthId,
+      facilitatorId: uid,
+      records: { [slotKey]: { checkIn: now, checkOut: null } },
+      updatedAt: now,
+    });
+  }
+}
+
+export async function checkOut(monthId: string, uid: string, slotKey: string) {
+  const docId = `${monthId}_${uid}`;
+  const now = Timestamp.now();
+  const snap = await getDoc(doc(getFirebaseDb(), "attendance", docId));
+  if (snap.exists()) {
+    const data = snap.data() as Attendance;
+    const records = { ...data.records };
+    records[slotKey] = { checkIn: records[slotKey]?.checkIn || null, checkOut: now };
+    await updateDoc(doc(getFirebaseDb(), "attendance", docId), { records, updatedAt: now });
+  }
+}
+
+export async function adminEditAttendance(
+  monthId: string,
+  facilitatorId: string,
+  slotKey: string,
+  checkInTime: Timestamp | null,
+  checkOutTime: Timestamp | null,
+  adminUid: string
+) {
+  const docId = `${monthId}_${facilitatorId}`;
+  const now = Timestamp.now();
+  const record: AttendanceRecord = { checkIn: checkInTime, checkOut: checkOutTime, editedBy: adminUid };
+  const snap = await getDoc(doc(getFirebaseDb(), "attendance", docId));
+  if (snap.exists()) {
+    const data = snap.data() as Attendance;
+    const records = { ...data.records, [slotKey]: record };
+    await updateDoc(doc(getFirebaseDb(), "attendance", docId), { records, updatedAt: now });
+  } else {
+    await setDoc(doc(getFirebaseDb(), "attendance", docId), {
+      monthId,
+      facilitatorId,
+      records: { [slotKey]: record },
+      updatedAt: now,
+    });
+  }
+}
+
+// ===== Bank Account =====
+
+export async function updateUserBankAccount(uid: string, bankAccount: BankAccount) {
+  await updateDoc(doc(getFirebaseDb(), "users", uid), { bankAccount, updatedAt: Timestamp.now() });
 }
 
 // ===== Schedule Queries =====

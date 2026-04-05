@@ -1,3 +1,4 @@
+import { Timestamp } from "firebase/firestore";
 import { DaySchedule, SlotDefinition } from "../types";
 import { TIME_SLOTS } from "./constants";
 
@@ -139,4 +140,31 @@ export function generateDefaultSlots(): SlotDefinition[] {
     classType: null,
     needsFacilitator: true,
   }));
+}
+
+export function timestampToDatetimeLocal(ts: Timestamp): string {
+  const d = ts.toDate();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const hours = String(d.getHours()).padStart(2, "0");
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+export function datetimeLocalToTimestamp(str: string): Timestamp {
+  return Timestamp.fromDate(new Date(str));
+}
+
+export function timestampToTimeString(ts: Timestamp): string {
+  const d = ts.toDate();
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+export function getSlotDate(slotKey: string): string {
+  return slotKey.split("_")[0];
+}
+
+export function getTodayString(): string {
+  return formatDate(new Date());
 }

@@ -3,9 +3,10 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { updateUserProfile } from "@/lib/firebase/firestore";
+import { updateUserProfile, updateUserBankAccount } from "@/lib/firebase/firestore";
 import { uploadProfileImage } from "@/lib/firebase/storage";
-import { getTier, getNextTier, isTraining, TRAINING_MAX } from "@/lib/utils/constants";
+import { getTier, getNextTier, isTraining, TRAINING_MAX, TRAINING_HOURLY_RATE, getEffectiveRate } from "@/lib/utils/constants";
+import { BankAccount } from "@/lib/types";
 
 export default function ProfilePage() {
   const { user, profile, loading } = useAuth();
@@ -16,6 +17,13 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [bankName, setBankName] = useState("");
+  const [branchName, setBranchName] = useState("");
+  const [accountType, setAccountType] = useState<"普通" | "当座">("普通");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [accountHolder, setAccountHolder] = useState("");
+  const [bankSaving, setBankSaving] = useState(false);
+  const [bankSaved, setBankSaved] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.push("/login");
@@ -25,6 +33,13 @@ export default function ProfilePage() {
     if (profile) {
       setNickname(profile.nickname || "");
       setPhotoURL(profile.photoURL || "");
+      if (profile.bankAccount) {
+        setBankName(profile.bankAccount.bankName);
+        setBranchName(profile.bankAccount.branchName);
+        setAccountType(profile.bankAccount.accountType);
+        setAccountNumber(profile.bankAccount.accountNumber);
+        setAccountHolder(profile.bankAccount.accountHolder);
+      }
     }
   }, [profile]);
 
@@ -35,6 +50,15 @@ export default function ProfilePage() {
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  };
+
+  const handleSaveBank = async () => {
+    if (!user) return;
+    setBankSaving(true);
+    await updateUserBankAccount(user.uid, { bankName, branchName, accountType, accountNumber, accountHolder });
+    setBankSaving(false);
+    setBankSaved(true);
+    setTimeout(() => setBankSaved(false), 2000);
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -176,6 +200,109 @@ export default function ProfilePage() {
             <span className="absolute right-0">300</span>
           </div>
         </div>
+      </div>
+
+      {/* 報酬情報 */}
+      <div className="mt-4 bg-white rounded-xl border border-gray-200 p-4">
+        <h2 className="font-medium text-gray-800 mb-3">報酬情報</h2>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm text-gray-500">時給</span>
+          <span className="text-sm font-medium text-gray-800">
+            {isTraining(classCount)
+              ? `¥${TRAINING_HOURLY_RATE.toLocaleString()}（研修時給）`
+              : profile.hourlyRate
+                ? `¥${profile.hourlyRate.toLocaleString()}`
+                : "未設定"}
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-gray-500">交通費</span>
+          <span className="text-sm font-medium text-gray-800">
+            {profile.transportCost
+              ? `¥${profile.transportCost.toLocaleString()}/月`
+              : "なし"}
+          </span>
+        </div>
+      </div>
+
+      {/* 口座情報 */}
+      <div className="mt-4 bg-white rounded-xl border border-gray-200 p-4">
+        <h2 className="font-medium text-gray-800 mb-3">口座情報</h2>
+        <p className="text-xs text-gray-500 mb-4">給与振込先の口座情報を登録してください</p>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">銀行名</label>
+            <input
+              type="text"
+              value={bankName}
+              onChange={(e) => setBankName(e.target.value)}
+              placeholder="例: 三菱UFJ銀行"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">支店名</label>
+            <input
+              type="text"
+              value={branchName}
+              onChange={(e) => setBranchName(e.target.value)}
+              placeholder="例: 渋谷支店"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">口座種別</label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-1.5 text-sm text-gray-700">
+                <input
+                  type="radio"
+                  name="accountType"
+                  checked={accountType === "普通"}
+                  onChange={() => setAccountType("普通")}
+                  className="accent-brand-600"
+                />
+                普通
+              </label>
+              <label className="flex items-center gap-1.5 text-sm text-gray-700">
+                <input
+                  type="radio"
+                  name="accountType"
+                  checked={accountType === "当座"}
+                  onChange={() => setAccountType("当座")}
+                  className="accent-brand-600"
+                />
+                当座
+              </label>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">口座番号</label>
+            <input
+              type="text"
+              value={accountNumber}
+              onChange={(e) => setAccountNumber(e.target.value)}
+              placeholder="例: 1234567"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">口座名義人（カタカナ）</label>
+            <input
+              type="text"
+              value={accountHolder}
+              onChange={(e) => setAccountHolder(e.target.value)}
+              placeholder="例: ヤマダ タロウ"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+            />
+          </div>
+        </div>
+        <button
+          onClick={handleSaveBank}
+          disabled={bankSaving}
+          className="w-full mt-4 py-3 rounded-xl font-medium text-white bg-brand-600 hover:bg-brand-700 active:bg-brand-800 disabled:bg-gray-300 transition-colors"
+        >
+          {bankSaving ? "保存中..." : bankSaved ? "保存しました" : "口座情報を保存"}
+        </button>
       </div>
     </div>
   );

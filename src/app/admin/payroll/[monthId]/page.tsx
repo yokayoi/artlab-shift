@@ -3,8 +3,8 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { getSchedule, getShift, getAllUsers } from "@/lib/firebase/firestore";
-import { MonthSchedule, ShiftAssignment, UserProfile } from "@/lib/types";
+import { getSchedule, getShift, getAllUsers, getMonthAttendances } from "@/lib/firebase/firestore";
+import { MonthSchedule, ShiftAssignment, UserProfile, Attendance } from "@/lib/types";
 import { parseMonthId, getSlotKey, formatDateShort } from "@/lib/utils/dateCalc";
 import { CLASS_DURATION_MINUTES, getEffectiveRate } from "@/lib/utils/constants";
 
@@ -18,7 +18,12 @@ interface FacilitatorPayroll {
   totalMinutes: number;
   classPay: number;
   totalPay: number;
-  slots: { label: string; key: string }[];
+  actualMinutes: number;
+  actualClassPay: number;
+  actualTotalPay: number;
+  hasAttendance: boolean;
+  bankInfo: string;
+  slots: { label: string; key: string; attendanceMin: number | null }[];
 }
 
 export default function PayrollPage({ params }: { params: Promise<{ monthId: string }> }) {
@@ -28,6 +33,7 @@ export default function PayrollPage({ params }: { params: Promise<{ monthId: str
   const [schedule, setSchedule] = useState<MonthSchedule | null>(null);
   const [shift, setShift] = useState<ShiftAssignment | null>(null);
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [attendances, setAttendances] = useState<Attendance[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
@@ -37,14 +43,16 @@ export default function PayrollPage({ params }: { params: Promise<{ monthId: str
   useEffect(() => {
     if (!user || !isAdmin) return;
     (async () => {
-      const [sched, shiftData, allUsers] = await Promise.all([
+      const [sched, shiftData, allUsers, attData] = await Promise.all([
         getSchedule(monthId),
         getShift(monthId),
         getAllUsers(),
+        getMonthAttendances(monthId),
       ]);
       setSchedule(sched);
       setShift(shiftData);
       setUsers(allUsers);
+      setAttendances(attData);
       setDataLoading(false);
     })();
   }, [user, isAdmin, monthId]);
@@ -79,6 +87,10 @@ export default function PayrollPage({ params }: { params: Promise<{ monthId: str
     });
   });
 
+  // Build attendance map
+  const attendanceMap = new Map<string, Attendance>();
+  attendances.forEach((a) => attendanceMap.set(a.facilitatorId, a));
+
   // Calculate payroll per facilitator
   const payrollMap = new Map<string, FacilitatorPayroll>();
 
@@ -88,6 +100,7 @@ export default function PayrollPage({ params }: { params: Promise<{ monthId: str
         const userProfile = users.find((u) => u.uid === uid);
         const classCount = userProfile?.classCount || 0;
         const effectiveRate = getEffectiveRate(classCount, userProfile?.hourlyRate || 0);
+        const bank = userProfile?.bankAccount;
         payrollMap.set(uid, {
           uid,
           name: userProfile?.nickname || userProfile?.displayName || uid,
@@ -98,13 +111,30 @@ export default function PayrollPage({ params }: { params: Promise<{ monthId: str
           totalMinutes: 0,
           classPay: 0,
           totalPay: 0,
+          actualMinutes: 0,
+          actualClassPay: 0,
+          actualTotalPay: 0,
+          hasAttendance: false,
+          bankInfo: bank ? `${bank.bankName} ${bank.branchName} (${bank.accountType}) ${bank.accountNumber} ${bank.accountHolder}` : "",
           slots: [],
         });
       }
       const entry = payrollMap.get(uid)!;
       entry.slotCount += 1;
       entry.totalMinutes += CLASS_DURATION_MINUTES;
-      entry.slots.push({ label: slotLabels[slotKey] || slotKey, key: slotKey });
+
+      const att = attendanceMap.get(uid);
+      const record = att?.records?.[slotKey];
+      let attendanceMin: number | null = null;
+      if (record?.checkIn && record?.checkOut) {
+        attendanceMin = Math.round((record.checkOut.toDate().getTime() - record.checkIn.toDate().getTime()) / 60000);
+        entry.hasAttendance = true;
+        entry.actualMinutes += attendanceMin;
+      } else {
+        entry.actualMinutes += CLASS_DURATION_MINUTES;
+      }
+
+      entry.slots.push({ label: slotLabels[slotKey] || slotKey, key: slotKey, attendanceMin });
     }
   }
 
@@ -113,12 +143,15 @@ export default function PayrollPage({ params }: { params: Promise<{ monthId: str
   for (const entry of payrollMap.values()) {
     entry.classPay = Math.round(entry.hourlyRate * (entry.totalMinutes / 60));
     entry.totalPay = entry.classPay + entry.transportCost;
+    entry.actualClassPay = Math.round(entry.hourlyRate * (entry.actualMinutes / 60));
+    entry.actualTotalPay = entry.actualClassPay + entry.transportCost;
     entry.slots.sort((a, b) => a.key.localeCompare(b.key));
     payrolls.push(entry);
   }
   payrolls.sort((a, b) => a.name.localeCompare(b.name));
 
-  const grandTotal = payrolls.reduce((sum, p) => sum + p.totalPay, 0);
+  const hasAnyAttendance = payrolls.some((p) => p.hasAttendance);
+  const grandTotal = payrolls.reduce((sum, p) => sum + (hasAnyAttendance ? p.actualTotalPay : p.totalPay), 0);
   const totalSlots = payrolls.reduce((sum, p) => sum + p.slotCount, 0);
 
   return (
@@ -148,55 +181,77 @@ export default function PayrollPage({ params }: { params: Promise<{ monthId: str
 
       {/* Per facilitator */}
       <div className="space-y-3">
-        {payrolls.map((p) => (
-          <div key={p.uid} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="px-4 py-3 flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-gray-800">{p.name}</span>
-                  {p.isTrainingRate && (
-                    <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">研修</span>
+        {payrolls.map((p) => {
+          const displayPay = p.hasAttendance ? p.actualTotalPay : p.totalPay;
+          const displayClassPay = p.hasAttendance ? p.actualClassPay : p.classPay;
+          const displayMinutes = p.hasAttendance ? p.actualMinutes : p.totalMinutes;
+          return (
+            <div key={p.uid} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div className="px-4 py-3 flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-gray-800">{p.name}</span>
+                    {p.isTrainingRate && (
+                      <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">研修</span>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">
+                    {p.hourlyRate > 0 ? `¥${p.hourlyRate.toLocaleString()}/h` : "時給未設定"}
+                    {p.isTrainingRate && "（研修時給）"}
+                    {" × "}{p.slotCount}コマ（{displayMinutes}分{p.hasAttendance ? " 実績" : ""}）= ¥{displayClassPay.toLocaleString()}
+                  </div>
+                  {p.hasAttendance && p.actualMinutes !== p.totalMinutes && (
+                    <div className="text-xs text-blue-500">
+                      予定{p.totalMinutes}分 → 実績{p.actualMinutes}分
+                    </div>
+                  )}
+                  {p.transportCost > 0 && (
+                    <div className="text-xs text-gray-500">
+                      交通費 ¥{p.transportCost.toLocaleString()}/月
+                    </div>
+                  )}
+                  {p.bankInfo ? (
+                    <div className="text-xs text-gray-400 mt-0.5">振込先: {p.bankInfo}</div>
+                  ) : (
+                    <div className="text-xs text-red-400 mt-0.5">口座未登録</div>
                   )}
                 </div>
-                <div className="text-xs text-gray-500 mt-0.5">
-                  {p.hourlyRate > 0 ? `¥${p.hourlyRate.toLocaleString()}/h` : "時給未設定"}
-                  {p.isTrainingRate && "（研修時給）"}
-                  {" × "}{p.slotCount}コマ（{p.totalMinutes}分）= ¥{p.classPay.toLocaleString()}
+                <div className={`text-lg font-bold ${p.hourlyRate > 0 ? "text-brand-700" : "text-red-500"}`}>
+                  {p.hourlyRate > 0 ? `¥${displayPay.toLocaleString()}` : "要設定"}
                 </div>
-                {p.transportCost > 0 && (
-                  <div className="text-xs text-gray-500">
-                    交通費 ¥{p.transportCost.toLocaleString()}/月
-                  </div>
-                )}
               </div>
-              <div className={`text-lg font-bold ${p.hourlyRate > 0 ? "text-brand-700" : "text-red-500"}`}>
-                {p.hourlyRate > 0 ? `¥${p.totalPay.toLocaleString()}` : "要設定"}
-              </div>
-            </div>
-            <div className="bg-gray-50 px-4 py-2 border-t border-gray-100">
-              <div className="flex flex-wrap gap-1">
-                {p.slots.map((s) => (
-                  <span key={s.key} className="text-xs bg-white border border-gray-200 rounded px-2 py-0.5 text-gray-600">
-                    {s.label}
-                  </span>
-                ))}
+              <div className="bg-gray-50 px-4 py-2 border-t border-gray-100">
+                <div className="flex flex-wrap gap-1">
+                  {p.slots.map((s) => (
+                    <span key={s.key} className="text-xs bg-white border border-gray-200 rounded px-2 py-0.5 text-gray-600">
+                      {s.label}{s.attendanceMin !== null ? ` (${s.attendanceMin}分)` : ""}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      {payrolls.some((p) => p.hourlyRate === 0) && (
-        <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-          <p className="text-sm text-yellow-800">
-            時給未設定のファシリテーターがいます。
-            <button
-              onClick={() => router.push("/admin/users")}
-              className="text-brand-600 hover:underline ml-1"
-            >
-              ユーザー管理で時給を設定
-            </button>
-          </p>
+      {(payrolls.some((p) => p.hourlyRate === 0) || payrolls.some((p) => !p.bankInfo)) && (
+        <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-xl p-4 space-y-1">
+          {payrolls.some((p) => p.hourlyRate === 0) && (
+            <p className="text-sm text-yellow-800">
+              時給未設定のファシリテーターがいます。
+              <button onClick={() => router.push("/admin/users")} className="text-brand-600 hover:underline ml-1">
+                ユーザー管理で設定
+              </button>
+            </p>
+          )}
+          {payrolls.some((p) => !p.bankInfo) && (
+            <p className="text-sm text-yellow-800">
+              口座未登録のファシリテーターがいます。
+              <button onClick={() => router.push("/admin/users")} className="text-brand-600 hover:underline ml-1">
+                ユーザー管理で設定
+              </button>
+            </p>
+          )}
         </div>
       )}
     </div>

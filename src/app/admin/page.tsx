@@ -196,6 +196,12 @@ export default function AdminPage() {
                       シフト確認
                     </Link>
                     <Link
+                      href={`/admin/attendance/${entry.monthId}`}
+                      className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50"
+                    >
+                      出退勤
+                    </Link>
+                    <Link
                       href={`/admin/payroll/${entry.monthId}`}
                       className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50"
                     >

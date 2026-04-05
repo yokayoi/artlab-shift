@@ -4,6 +4,14 @@ export type ClassType = "カリキュラム" | "オーダーメイド";
 export type MonthStatus = "draft" | "collecting" | "shift_created" | "published";
 export type UserRole = "admin" | "facilitator";
 
+export interface BankAccount {
+  bankName: string;
+  branchName: string;
+  accountType: "普通" | "当座";
+  accountNumber: string;
+  accountHolder: string;
+}
+
 export interface UserProfile {
   uid: string;
   email: string;
@@ -14,7 +22,22 @@ export interface UserProfile {
   hourlyRate?: number;
   transportCost?: number;
   classCount?: number;
+  bankAccount?: BankAccount;
   createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface AttendanceRecord {
+  checkIn: Timestamp | null;
+  checkOut: Timestamp | null;
+  editedBy?: string;
+}
+
+export interface Attendance {
+  id: string;
+  monthId: string;
+  facilitatorId: string;
+  records: Record<string, AttendanceRecord>;
   updatedAt: Timestamp;
 }
 

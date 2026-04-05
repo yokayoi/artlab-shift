@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { getAllUsers, updateUserRole, updateUserHourlyRate, updateUserTransportCost, deleteUserDoc, updateUserProfile, setUserClassCount } from "@/lib/firebase/firestore";
-import { UserProfile } from "@/lib/types";
+import { getAllUsers, updateUserRole, updateUserHourlyRate, updateUserTransportCost, deleteUserDoc, updateUserProfile, setUserClassCount, updateUserBankAccount } from "@/lib/firebase/firestore";
+import { UserProfile, BankAccount } from "@/lib/types";
 import { getTier, isTraining, TRAINING_HOURLY_RATE } from "@/lib/utils/constants";
 
 export default function AdminUsersPage() {
@@ -21,6 +21,8 @@ export default function AdminUsersPage() {
   const [classCountInput, setClassCountInput] = useState("");
   const [editingTransport, setEditingTransport] = useState<string | null>(null);
   const [transportInput, setTransportInput] = useState("");
+  const [editingBank, setEditingBank] = useState<string | null>(null);
+  const [bankInputs, setBankInputs] = useState<BankAccount>({ bankName: "", branchName: "", accountType: "普通", accountNumber: "", accountHolder: "" });
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) router.push("/");
@@ -110,6 +112,17 @@ export default function AdminUsersPage() {
       );
     }
     setEditingTransport(null);
+  };
+
+  const handleEditBank = (u: UserProfile) => {
+    setEditingBank(u.uid);
+    setBankInputs(u.bankAccount || { bankName: "", branchName: "", accountType: "普通", accountNumber: "", accountHolder: "" });
+  };
+
+  const handleSaveBank = async (uid: string) => {
+    await updateUserBankAccount(uid, bankInputs);
+    setUsers((prev) => prev.map((u) => (u.uid === uid ? { ...u, bankAccount: bankInputs } : u)));
+    setEditingBank(null);
   };
 
   const handleDeleteUser = async (targetUser: UserProfile) => {
@@ -262,6 +275,60 @@ export default function AdminUsersPage() {
             ) : (
               <button onClick={() => handleEditClassCount(u)} className="text-xs text-gray-500 hover:text-brand-600">
                 {u.classCount || 0}回{isTraining(u.classCount || 0) ? " 📚研修" : ""}
+              </button>
+            )}
+            <span className="text-gray-300">|</span>
+            {/* Bank account */}
+            {editingBank === u.uid ? (
+              <div className="w-full mt-1 p-2 bg-gray-50 rounded-lg space-y-1.5">
+                <div className="grid grid-cols-2 gap-1.5">
+                  <input
+                    type="text"
+                    value={bankInputs.bankName}
+                    onChange={(e) => setBankInputs({ ...bankInputs, bankName: e.target.value })}
+                    placeholder="銀行名"
+                    className="text-xs border border-gray-300 rounded px-2 py-1"
+                  />
+                  <input
+                    type="text"
+                    value={bankInputs.branchName}
+                    onChange={(e) => setBankInputs({ ...bankInputs, branchName: e.target.value })}
+                    placeholder="支店名"
+                    className="text-xs border border-gray-300 rounded px-2 py-1"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-1 text-xs text-gray-600">
+                    <input type="radio" checked={bankInputs.accountType === "普通"} onChange={() => setBankInputs({ ...bankInputs, accountType: "普通" })} className="accent-brand-600" /> 普通
+                  </label>
+                  <label className="flex items-center gap-1 text-xs text-gray-600">
+                    <input type="radio" checked={bankInputs.accountType === "当座"} onChange={() => setBankInputs({ ...bankInputs, accountType: "当座" })} className="accent-brand-600" /> 当座
+                  </label>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <input
+                    type="text"
+                    value={bankInputs.accountNumber}
+                    onChange={(e) => setBankInputs({ ...bankInputs, accountNumber: e.target.value })}
+                    placeholder="口座番号"
+                    className="text-xs border border-gray-300 rounded px-2 py-1"
+                  />
+                  <input
+                    type="text"
+                    value={bankInputs.accountHolder}
+                    onChange={(e) => setBankInputs({ ...bankInputs, accountHolder: e.target.value })}
+                    placeholder="名義人（カタカナ）"
+                    className="text-xs border border-gray-300 rounded px-2 py-1"
+                  />
+                </div>
+                <div className="flex gap-1">
+                  <button onClick={() => handleSaveBank(u.uid)} className="text-xs text-brand-600 font-medium">保存</button>
+                  <button onClick={() => setEditingBank(null)} className="text-xs text-gray-400">取消</button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => handleEditBank(u)} className="text-xs text-gray-500 hover:text-brand-600">
+                {u.bankAccount ? `口座: ${u.bankAccount.bankName} ${u.bankAccount.branchName}` : "口座未登録"}
               </button>
             )}
           </div>

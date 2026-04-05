@@ -3,9 +3,9 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { getSchedule, getAvailability, saveAvailability, getShift, getActiveAnnouncements, getCollectingSchedules } from "@/lib/firebase/firestore";
-import { MonthSchedule, Availability, ShiftAssignment, Announcement } from "@/lib/types";
-import { getSlotKey, parseMonthId, formatMonthId, formatDateShort, formatDeadline, isDeadlinePassed } from "@/lib/utils/dateCalc";
+import { getSchedule, getAvailability, saveAvailability, getShift, getActiveAnnouncements, getCollectingSchedules, getAttendance, checkIn as firestoreCheckIn, checkOut as firestoreCheckOut } from "@/lib/firebase/firestore";
+import { MonthSchedule, Availability, ShiftAssignment, Announcement, Attendance } from "@/lib/types";
+import { getSlotKey, parseMonthId, formatMonthId, formatDateShort, formatDeadline, isDeadlinePassed, getSlotDate, getTodayString, timestampToTimeString } from "@/lib/utils/dateCalc";
 import { CLASS_TYPE_COLORS, STATUS_LABELS, CLASS_DURATION_MINUTES, TRAINING_MAX, LAUNCH_YEAR, LAUNCH_MONTH, getTier, getNextTier, isTraining, getEffectiveRate } from "@/lib/utils/constants";
 
 export default function FacilitatorSchedulePage({ params }: { params: Promise<{ monthId: string }> }) {
@@ -21,6 +21,8 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [collectingMonths, setCollectingMonths] = useState<string[]>([]);
   const [satokoMsg, setSatokoMsg] = useState<string>("");
+  const [attendance, setAttendance] = useState<Attendance | null>(null);
+  const [checkingIn, setCheckingIn] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -31,13 +33,15 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const [sched, avail, shiftData] = await Promise.all([
+      const [sched, avail, shiftData, attendanceData] = await Promise.all([
         getSchedule(monthId),
         getAvailability(monthId, user.uid),
         getShift(monthId),
+        getAttendance(monthId, user.uid),
       ]);
       setSchedule(sched);
       setShift(shiftData);
+      setAttendance(attendanceData);
       try {
         const [anns, collectingScheds] = await Promise.all([
           getActiveAnnouncements(),
@@ -79,6 +83,24 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
       .then((data) => setSatokoMsg(data.message))
       .catch(() => setSatokoMsg(`${name}さん、今日もアートで世界を広げよう！`));
   }, [profile]);
+
+  const handleCheckIn = async (slotKey: string) => {
+    if (!user) return;
+    setCheckingIn(slotKey);
+    await firestoreCheckIn(monthId, user.uid, slotKey);
+    const updated = await getAttendance(monthId, user.uid);
+    setAttendance(updated);
+    setCheckingIn(null);
+  };
+
+  const handleCheckOut = async (slotKey: string) => {
+    if (!user) return;
+    setCheckingIn(slotKey);
+    await firestoreCheckOut(monthId, user.uid, slotKey);
+    const updated = await getAttendance(monthId, user.uid);
+    setAttendance(updated);
+    setCheckingIn(null);
+  };
 
   const toggleSlot = (key: string) => {
     if (schedule?.status !== "collecting") return;
@@ -286,24 +308,73 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
             </div>
           )}
 
-          {/* Published Shift Summary */}
-          {isPublished && shift && (
-            <div className="mt-6 bg-brand-50 rounded-xl p-4">
-              <h3 className="font-medium text-brand-800 mb-2">あなたのシフト</h3>
-              {schedule.days.flatMap((day) =>
-                day.slots
-                  .filter((slot) => {
-                    const key = getSlotKey(day.date, slot.time);
-                    return shift.assignments?.[key]?.includes(user?.uid || "");
-                  })
-                  .map((slot) => (
-                    <div key={getSlotKey(day.date, slot.time)} className="text-sm text-brand-700">
-                      {formatDateShort(day.date)} {slot.time} {slot.classType || ""}
-                    </div>
-                  ))
-              )}
-            </div>
-          )}
+          {/* Published Shift Summary with Check-in/out */}
+          {isPublished && shift && (() => {
+            const mySlots = schedule.days.flatMap((day) =>
+              day.slots
+                .filter((slot) => {
+                  const key = getSlotKey(day.date, slot.time);
+                  return shift.assignments?.[key]?.includes(user?.uid || "");
+                })
+                .map((slot) => ({ day, slot, key: getSlotKey(day.date, slot.time) }))
+            );
+            if (mySlots.length === 0) return null;
+            return (
+              <div className="mt-6 bg-brand-50 rounded-xl p-4">
+                <h3 className="font-medium text-brand-800 mb-3">あなたのシフト</h3>
+                <div className="space-y-3">
+                  {mySlots.map(({ day, slot, key }) => {
+                    const record = attendance?.records?.[key];
+                    const hasCheckIn = !!record?.checkIn;
+                    const hasCheckOut = !!record?.checkOut;
+                    const isProcessing = checkingIn === key;
+                    let durationMin = 0;
+                    if (record?.checkIn && record?.checkOut) {
+                      durationMin = Math.round((record.checkOut.toDate().getTime() - record.checkIn.toDate().getTime()) / 60000);
+                    }
+                    return (
+                      <div key={key} className="bg-white rounded-lg p-3 border border-brand-100">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="text-sm font-medium text-brand-700">
+                            {formatDateShort(day.date)} {slot.time} {slot.classType || ""}
+                          </div>
+                          {record?.editedBy && (
+                            <span className="text-[10px] text-gray-400">(管理者編集)</span>
+                          )}
+                        </div>
+                        {hasCheckIn && hasCheckOut ? (
+                          <div className="flex items-center gap-3 text-xs text-gray-600">
+                            <span>IN {timestampToTimeString(record!.checkIn!)}</span>
+                            <span>OUT {timestampToTimeString(record!.checkOut!)}</span>
+                            <span className="font-medium text-brand-600">{durationMin}分</span>
+                          </div>
+                        ) : hasCheckIn && !hasCheckOut ? (
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs text-gray-600">IN {timestampToTimeString(record!.checkIn!)}</span>
+                            <button
+                              onClick={() => handleCheckOut(key)}
+                              disabled={isProcessing}
+                              className="px-3 py-1 text-xs rounded-lg font-medium text-white bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300"
+                            >
+                              {isProcessing ? "..." : "チェックアウト"}
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleCheckIn(key)}
+                            disabled={isProcessing}
+                            className="px-3 py-1 text-xs rounded-lg font-medium text-white bg-green-500 hover:bg-green-600 disabled:bg-gray-300"
+                          >
+                            {isProcessing ? "..." : "チェックイン"}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
         </>
       )}
 
@@ -442,8 +513,23 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
         const effectiveRate = getEffectiveRate(classCount, profile.hourlyRate || 0);
         const trainingRate = classCount >= 1 && classCount <= TRAINING_MAX;
         const transportCost = profile.transportCost || 0;
-        const totalMinutes = mySlots.length * CLASS_DURATION_MINUTES;
-        const classPay = Math.round(effectiveRate * (totalMinutes / 60));
+
+        // Calculate actual minutes from attendance
+        let actualMinutes = 0;
+        let hasAttendance = false;
+        mySlots.forEach((key) => {
+          const record = attendance?.records?.[key];
+          if (record?.checkIn && record?.checkOut) {
+            actualMinutes += Math.round((record.checkOut.toDate().getTime() - record.checkIn.toDate().getTime()) / 60000);
+            hasAttendance = true;
+          } else {
+            actualMinutes += CLASS_DURATION_MINUTES;
+          }
+        });
+
+        const scheduledMinutes = mySlots.length * CLASS_DURATION_MINUTES;
+        const displayMinutes = hasAttendance ? actualMinutes : scheduledMinutes;
+        const classPay = Math.round(effectiveRate * (displayMinutes / 60));
         const totalPay = classPay + (mySlots.length > 0 ? transportCost : 0);
         const slotLabels: Record<string, string> = {};
         if (schedule) {
@@ -469,7 +555,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
               <>
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-sm text-gray-500">
-                    {mySlots.length}コマ（{totalMinutes}分）
+                    {mySlots.length}コマ（{displayMinutes}分{hasAttendance ? " 実績" : ""}）
                   </div>
                   <div className="text-sm text-gray-700">
                     ¥{classPay.toLocaleString()}
