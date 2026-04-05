@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { getSchedule, getAvailability, saveAvailability, getShift, getActiveAnnouncements, getCollectingSchedules, getAttendance, checkIn as firestoreCheckIn, checkOut as firestoreCheckOut } from "@/lib/firebase/firestore";
+import { getSchedule, getAvailability, saveAvailability, getShift, saveShift, getActiveAnnouncements, getCollectingSchedules, getAttendance, checkIn as firestoreCheckIn, checkOut as firestoreCheckOut } from "@/lib/firebase/firestore";
 import { MonthSchedule, Availability, ShiftAssignment, Announcement, Attendance } from "@/lib/types";
 import { getSlotKey, parseMonthId, formatMonthId, formatDateShort, formatDeadline, isDeadlinePassed, getSlotDate, getTodayString, timestampToTimeString } from "@/lib/utils/dateCalc";
 import { CLASS_TYPE_COLORS, STATUS_LABELS, CLASS_DURATION_MINUTES, TRAINING_MAX, LAUNCH_YEAR, LAUNCH_MONTH, DEMO_MONTH_ID, getTier, getNextTier, isTraining, getEffectiveRate } from "@/lib/utils/constants";
@@ -33,12 +33,38 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const [sched, avail, shiftData] = await Promise.all([
+      let [sched, avail, shiftData] = await Promise.all([
         getSchedule(monthId),
         getAvailability(monthId, user.uid),
         getShift(monthId),
       ]);
       setSchedule(sched);
+
+      // デモ月: ログインユーザーを自動でシフトに追加
+      if (monthId === DEMO_MONTH_ID && sched && sched.status === "published" && profile) {
+        const isAssigned = shiftData && Object.values(shiftData.assignments).some((uids) => uids.includes(user.uid));
+        if (!isAssigned) {
+          const newAssignments: Record<string, string[]> = { ...(shiftData?.assignments || {}) };
+          const newNames: Record<string, string[]> = { ...(shiftData?.assignmentNames || {}) };
+          const displayName = profile.nickname || profile.displayName;
+          sched.days.forEach((day) =>
+            day.slots.forEach((slot) => {
+              if (slot.needsFacilitator && slot.classType) {
+                const key = getSlotKey(day.date, slot.time);
+                if (!newAssignments[key]) newAssignments[key] = [];
+                if (!newNames[key]) newNames[key] = [];
+                if (!newAssignments[key].includes(user.uid)) {
+                  newAssignments[key] = [...newAssignments[key], user.uid];
+                  newNames[key] = [...newNames[key], displayName];
+                }
+              }
+            })
+          );
+          await saveShift(monthId, newAssignments, newNames, user.uid);
+          shiftData = { id: monthId, monthId, assignments: newAssignments, assignmentNames: newNames, createdBy: user.uid } as ShiftAssignment;
+        }
+      }
+
       setShift(shiftData);
       try {
         const attendanceData = await getAttendance(monthId, user.uid);
@@ -145,8 +171,16 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
-      {/* Calendar Link */}
-      <div className="flex justify-end mb-2">
+      {/* Calendar & Demo Link */}
+      <div className="flex justify-end gap-2 mb-2">
+        {!isDemo && (
+          <button
+            onClick={() => router.push(`/schedule/${DEMO_MONTH_ID}`)}
+            className="text-xs text-brand-600 bg-brand-50 border border-brand-200 rounded-lg px-3 py-1.5 hover:bg-brand-100 transition-colors"
+          >
+            デモ版
+          </button>
+        )}
         <button
           onClick={() => router.push("/schedule/calendar")}
           className="text-xs text-gray-600 bg-white border border-gray-300 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors"
