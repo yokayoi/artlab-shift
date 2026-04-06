@@ -60,6 +60,19 @@ export default function AdminScheduleSetupPage({ params }: { params: Promise<{ m
     });
   };
 
+  const setChildCount = (dayIndex: number, slotIndex: number, count: number) => {
+    setDays((prev) => {
+      const updated = [...prev];
+      updated[dayIndex] = {
+        ...updated[dayIndex],
+        slots: updated[dayIndex].slots.map((s, i) =>
+          i === slotIndex ? { ...s, childCount: count || undefined } : s
+        ),
+      };
+      return updated;
+    });
+  };
+
   const handleAddDate = () => {
     if (!newDate) return;
     const existing = days.find((d) => d.date === newDate);
@@ -258,25 +271,42 @@ export default function AdminScheduleSetupPage({ params }: { params: Promise<{ m
                   {!slot.needsFacilitator ? (
                     <span className="text-xs text-gray-400">ファシリテーター不要</span>
                   ) : (
-                    <div className="flex gap-2">
-                      {CLASS_TYPES.map((ct) => {
-                        const colors = CLASS_TYPE_COLORS[ct];
-                        const isSelected = slot.classType === ct;
-                        return (
-                          <button
-                            key={ct}
-                            onClick={() => isDraft ? setClassType(dayIndex, slotIndex, isSelected ? null : ct) : null}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${!isDraft ? "cursor-default" : ""}`}
-                            style={
-                              isSelected
-                                ? { backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }
-                                : { backgroundColor: "white", color: "#9CA3AF", borderColor: "#E5E7EB" }
-                            }
-                          >
-                            {ct}
-                          </button>
-                        );
-                      })}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex gap-2">
+                        {CLASS_TYPES.map((ct) => {
+                          const colors = CLASS_TYPE_COLORS[ct];
+                          const isSelected = slot.classType === ct;
+                          return (
+                            <button
+                              key={ct}
+                              onClick={() => isDraft ? setClassType(dayIndex, slotIndex, isSelected ? null : ct) : null}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${!isDraft ? "cursor-default" : ""}`}
+                              style={
+                                isSelected
+                                  ? { backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }
+                                  : { backgroundColor: "white", color: "#9CA3AF", borderColor: "#E5E7EB" }
+                              }
+                            >
+                              {ct}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {slot.classType && (
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-gray-400">子ども</span>
+                          <input
+                            type="number"
+                            min={0}
+                            max={20}
+                            value={slot.childCount || ""}
+                            onChange={(e) => setChildCount(dayIndex, slotIndex, parseInt(e.target.value) || 0)}
+                            placeholder="0"
+                            className="w-12 border border-gray-300 rounded-lg px-2 py-1 text-xs text-center focus:outline-none focus:ring-2 focus:ring-brand-500"
+                          />
+                          <span className="text-xs text-gray-400">名</span>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

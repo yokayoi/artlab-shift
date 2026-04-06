@@ -47,6 +47,7 @@ export interface SlotDefinition {
   time: string;
   classType: ClassType | null;
   needsFacilitator: boolean;
+  childCount?: number;
 }
 
 export interface DaySchedule {

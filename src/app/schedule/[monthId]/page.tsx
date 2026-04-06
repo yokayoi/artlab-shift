@@ -3,10 +3,10 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { getSchedule, getAvailability, saveAvailability, getShift, saveShift, getActiveAnnouncements, getCollectingSchedules, getAttendance, checkIn as firestoreCheckIn, checkOut as firestoreCheckOut, editMyAttendanceTime, resetDayAttendance } from "@/lib/firebase/firestore";
-import { MonthSchedule, Availability, ShiftAssignment, Announcement, Attendance } from "@/lib/types";
+import { getSchedule, getAvailability, saveAvailability, getShift, saveShift, getActiveAnnouncements, getCollectingSchedules, getAttendance, checkIn as firestoreCheckIn, checkOut as firestoreCheckOut, editMyAttendanceTime, resetDayAttendance, getMonthAvailabilities, getAllUsers } from "@/lib/firebase/firestore";
+import { MonthSchedule, Availability, ShiftAssignment, Announcement, Attendance, UserProfile } from "@/lib/types";
 import { getSlotKey, parseMonthId, formatMonthId, formatDateShort, formatDeadline, isDeadlinePassed, getSlotDate, getTodayString, timestampToTimeString, datetimeLocalToTimestamp, timestampToDatetimeLocal } from "@/lib/utils/dateCalc";
-import { CLASS_TYPE_COLORS, STATUS_LABELS, CLASS_DURATION_MINUTES, TRAINING_MAX, LAUNCH_YEAR, LAUNCH_MONTH, DEMO_MONTH_ID, getTier, getNextTier, isTraining, getEffectiveRate } from "@/lib/utils/constants";
+import { CLASS_TYPE_COLORS, STATUS_LABELS, CLASS_DURATION_MINUTES, TRAINING_MAX, LAUNCH_YEAR, LAUNCH_MONTH, DEMO_MONTH_ID, getTier, getNextTier, isTraining, getEffectiveRate, getRequiredFacilitators } from "@/lib/utils/constants";
 
 export default function FacilitatorSchedulePage({ params }: { params: Promise<{ monthId: string }> }) {
   const { monthId } = use(params);
@@ -25,6 +25,8 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
   const [checkingIn, setCheckingIn] = useState<string | null>(null);
   const [animationModal, setAnimationModal] = useState<{ type: "checkin" | "checkout"; message: string } | null>(null);
   const [sparkleKey, setSparkleKey] = useState<string | null>(null);
+  const [allAvailabilities, setAllAvailabilities] = useState<Availability[]>([]);
+  const [adminUids, setAdminUids] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!loading && !user) {
@@ -35,11 +37,15 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
   useEffect(() => {
     if (!user) return;
     (async () => {
-      let [sched, avail, shiftData] = await Promise.all([
+      let [sched, avail, shiftData, allAvails, allUsrs] = await Promise.all([
         getSchedule(monthId),
         getAvailability(monthId, user.uid),
         getShift(monthId),
+        getMonthAvailabilities(monthId),
+        getAllUsers(),
       ]);
+      setAllAvailabilities(allAvails);
+      setAdminUids(new Set(allUsrs.filter((u) => u.role === "admin").map((u) => u.uid)));
       setSchedule(sched);
 
       // デモ月: ログインユーザーを自動でシフトに追加
@@ -203,6 +209,9 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
     setSaving(true);
     await saveAvailability(monthId, user.uid, profile.displayName, myAvailability);
     setSubmitted(true);
+    // 投票数表示を更新
+    const updatedAvails = await getMonthAvailabilities(monthId);
+    setAllAvailabilities(updatedAvails);
     setSaving(false);
   };
 
@@ -388,15 +397,27 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                         );
                       }
 
+                      // 投票数計算（admin除外）
+                      const voteCount = allAvailabilities.filter(
+                        (a) => !adminUids.has(a.facilitatorId) && a.slots[key]
+                      ).length;
+                      const required = getRequiredFacilitators(slot.childCount);
+                      const shortage = required > 0 ? required - voteCount : 0;
+
                       return (
                         <div key={key} className="p-3 text-center">
                           <div className="text-xs text-gray-500 mb-1">{slot.time}</div>
                           <div
-                            className="text-[10px] px-1 py-0.5 rounded mb-2 inline-block"
+                            className="text-[10px] px-1 py-0.5 rounded mb-1 inline-block"
                             style={{ backgroundColor: colors!.bg, color: colors!.text }}
                           >
                             {slot.classType}
                           </div>
+                          {slot.childCount ? (
+                            <div className="text-[10px] text-gray-400 mb-1">
+                              子ども{slot.childCount}名
+                            </div>
+                          ) : null}
                           {isPublished && assignedNames ? (
                             <div className="mt-1">
                               {isAssignedToMe ? (
@@ -410,16 +431,26 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                               )}
                             </div>
                           ) : schedule.status === "collecting" ? (
-                            <button
-                              onClick={() => toggleSlot(key)}
-                              className={`w-10 h-10 mx-auto rounded-full border-2 flex items-center justify-center text-sm font-bold transition-all ${
-                                isAvailable
-                                  ? "bg-brand-500 border-brand-500 text-white"
-                                  : "bg-white border-gray-300 text-gray-300"
-                              }`}
-                            >
-                              {isAvailable ? "○" : "—"}
-                            </button>
+                            <>
+                              <button
+                                onClick={() => toggleSlot(key)}
+                                className={`w-10 h-10 mx-auto rounded-full border-2 flex items-center justify-center text-sm font-bold transition-all ${
+                                  isAvailable
+                                    ? "bg-brand-500 border-brand-500 text-white"
+                                    : "bg-white border-gray-300 text-gray-300"
+                                }`}
+                              >
+                                {isAvailable ? "○" : "—"}
+                              </button>
+                              <div className="text-[10px] text-gray-400 mt-1">
+                                {voteCount}名希望
+                              </div>
+                              {shortage > 0 && (
+                                <div className="text-[10px] text-red-600 font-medium mt-0.5 bg-red-50 rounded px-1 py-0.5">
+                                  あと{shortage}名
+                                </div>
+                              )}
+                            </>
                           ) : null}
                         </div>
                       );

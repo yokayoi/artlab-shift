@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getSchedule, getMonthAvailabilities, getAllUsers, saveAvailability, getFacilitators } from "@/lib/firebase/firestore";
 import { MonthSchedule, Availability, UserProfile } from "@/lib/types";
 import { getSlotKey, parseMonthId, formatDateShort } from "@/lib/utils/dateCalc";
-import { DEMO_MONTH_ID } from "@/lib/utils/constants";
+import { DEMO_MONTH_ID, getRequiredFacilitators } from "@/lib/utils/constants";
 
 export default function AdminResponsesPage({ params }: { params: Promise<{ monthId: string }> }) {
   const { monthId } = use(params);
@@ -104,7 +104,7 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
   if (!schedule) return <div className="p-4">スケジュールが見つかりません</div>;
 
   // Build slot keys (only slots that need facilitator AND have classType set)
-  const slotKeys: { key: string; date: string; dateLabel: string; time: string }[] = [];
+  const slotKeys: { key: string; date: string; dateLabel: string; time: string; childCount?: number }[] = [];
   schedule.days.forEach((day) => {
     day.slots.forEach((slot) => {
       if (slot.needsFacilitator && slot.classType) {
@@ -113,10 +113,14 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
           date: day.date,
           dateLabel: formatDateShort(day.date),
           time: slot.time,
+          childCount: slot.childCount,
         });
       }
     });
   });
+
+  // 管理者UIDセット
+  const adminUidSet = new Set(Object.values(userMap).filter((u) => u.role === "admin").map((u) => u.uid));
 
   // Calculate rowSpan for date grouping
   const dateRowSpans: Record<string, number> = {};
@@ -147,6 +151,9 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
               <th className="text-left px-2 py-2 font-medium text-gray-600 min-w-[50px]">
                 時間
               </th>
+              <th className="px-2 py-2 font-medium text-gray-500 text-center whitespace-nowrap min-w-[40px] text-xs">
+                子ども
+              </th>
               <th className="px-2 py-2 font-medium text-brand-700 text-center whitespace-nowrap bg-brand-50 min-w-[48px]">
                 計
               </th>
@@ -159,7 +166,11 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
           </thead>
           <tbody>
             {slotKeys.map((sk) => {
-              const count = availabilities.filter((a) => a.slots[sk.key]).length;
+              // admin除外の投票数
+              const count = availabilities.filter(
+                (a) => !adminUidSet.has(a.facilitatorId) && a.slots[sk.key]
+              ).length;
+              const required = getRequiredFacilitators(sk.childCount);
               const isFirst = !dateFirstRow.has(sk.date);
               if (isFirst) dateFirstRow.add(sk.date);
               return (
@@ -175,10 +186,25 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
                   <td className="px-2 py-2 text-gray-500 whitespace-nowrap text-xs">
                     {sk.time}
                   </td>
+                  <td className="px-2 py-2 text-center text-xs text-gray-500">
+                    {sk.childCount ? (
+                      <div>
+                        <span>{sk.childCount}名</span>
+                        {required > 0 && (
+                          <div className="text-[10px] text-gray-400">要{required}名</div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-gray-300">-</span>
+                    )}
+                  </td>
                   <td className={`px-2 py-2 text-center font-bold bg-brand-50 ${
-                    count === 0 ? "text-red-600" : count <= 2 ? "text-orange-600" : "text-brand-700"
+                    required > 0 && count < required ? "text-red-600" : count === 0 ? "text-red-600" : count <= 2 ? "text-orange-600" : "text-brand-700"
                   }`}>
                     {count}
+                    {required > 0 && count < required && (
+                      <div className="text-[10px] font-normal text-red-500">不足</div>
+                    )}
                   </td>
                   {availabilities.map((avail, ai) => (
                     <td
