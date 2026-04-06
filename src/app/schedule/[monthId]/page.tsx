@@ -414,8 +414,15 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                             {slot.classType}
                           </div>
                           {slot.childCount ? (
-                            <div className="text-[10px] text-gray-400 mb-1">
-                              子ども{slot.childCount}名
+                            <div className="mb-1">
+                              <div className="text-[10px] text-gray-700 font-medium">
+                                子ども{slot.childCount}名
+                              </div>
+                              {required > 0 && (
+                                <div className="text-[10px] text-gray-400">
+                                  必要{required}名
+                                </div>
+                              )}
                             </div>
                           ) : null}
                           {isPublished && assignedNames ? (
@@ -443,7 +450,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                                 {isAvailable ? "○" : "—"}
                               </button>
                               <div className={`text-[10px] mt-1 ${shortage > 0 ? "text-red-600 font-medium" : "text-gray-400"}`}>
-                                {voteCount}名希望{required > 0 && ` / 必要${required}名`}
+                                {voteCount}名希望
                               </div>
                             </>
                           ) : null}
