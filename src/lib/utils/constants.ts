@@ -70,8 +70,8 @@ export function getNextTier(classCount: number) {
 export function getRequiredFacilitators(childCount?: number): number {
   if (!childCount || childCount <= 0) return 0;
   if (childCount <= 4) return 1;
-  if (childCount <= 8) return 3;
-  if (childCount <= 10) return 2;
+  if (childCount <= 8) return 2;
+  if (childCount <= 10) return 3;
   return 3; // 11名以上は安全側
 }
 
