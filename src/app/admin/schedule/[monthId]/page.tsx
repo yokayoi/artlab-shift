@@ -351,7 +351,7 @@ export default function AdminScheduleSetupPage({ params }: { params: Promise<{ m
         </div>
       )}
 
-      {isDraft && (
+      {isDraft ? (
         <div className="mt-6 space-y-3">
           <button
             onClick={handleSave}
@@ -366,6 +366,16 @@ export default function AdminScheduleSetupPage({ params }: { params: Promise<{ m
             className="w-full py-3 rounded-xl font-medium text-white bg-brand-600 hover:bg-brand-700 disabled:bg-gray-300 transition-colors"
           >
             {saving ? "保存中..." : "回答受付を開始する"}
+          </button>
+        </div>
+      ) : (
+        <div className="mt-6">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="w-full py-3 rounded-xl font-medium text-white bg-brand-600 hover:bg-brand-700 disabled:bg-gray-300 transition-colors"
+          >
+            {saving ? "保存中..." : "子ども人数を保存"}
           </button>
         </div>
       )}
