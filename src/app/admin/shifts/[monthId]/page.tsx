@@ -210,8 +210,8 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
                     </td>
                   )}
                   <td className="px-2 py-2 text-gray-500 whitespace-nowrap text-xs">{sk.time}</td>
-                  <td className="px-1 py-2 text-center text-xs text-gray-500">
-                    {sk.childCount || <span className="text-gray-300">—</span>}
+                  <td className="px-1 py-2 text-center text-xs text-gray-700 font-semibold">
+                    {sk.childCount || <span className="text-gray-300 font-normal">—</span>}
                     {required > 0 && (
                       <div className="text-[10px] text-gray-600 font-semibold">要{required}名</div>
                     )}
