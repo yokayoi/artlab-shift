@@ -241,9 +241,9 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
                       >
                         {hasAvailability ? (
                           isAssigned ? (
-                            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-brand-500 text-white text-xs font-bold">✓</span>
+                            <span className="text-brand-600 text-lg leading-none">●</span>
                           ) : (
-                            <span className="text-gray-800 text-xl font-bold leading-none">○</span>
+                            <span className="text-gray-700 text-lg leading-none">●</span>
                           )
                         ) : (
                           <span className="text-gray-200">—</span>
