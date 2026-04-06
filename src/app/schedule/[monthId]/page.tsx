@@ -460,7 +460,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                                 ) : required > 0 && voteCount > required ? (
                                   <>
                                     <span className="text-[10px]">回答<span className="text-xs">{voteCount}</span>名</span>
-                                    <div className="text-[10px] text-blue-600">+{voteCount - required}名</div>
+                                    <div className="text-[10px] text-blue-600">{voteCount - required}名オーバー</div>
                                   </>
                                 ) : (
                                   <span className="text-[10px] text-gray-400">回答<span className="text-xs">{voteCount}</span>名</span>
