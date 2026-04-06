@@ -19,6 +19,7 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
   const [dataLoading, setDataLoading] = useState(true);
   const [modified, setModified] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
+  const [childCounts, setChildCounts] = useState<Record<string, number>>({});
   const [childCountModified, setChildCountModified] = useState(false);
 
   useEffect(() => {
@@ -35,6 +36,18 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
         getFacilitators(),
       ]);
       setSchedule(sched);
+      // 子ども人数の初期値をスケジュールから読み込み
+      if (sched) {
+        const counts: Record<string, number> = {};
+        sched.days.forEach((day) =>
+          day.slots.forEach((slot) => {
+            if (slot.childCount) {
+              counts[getSlotKey(day.date, slot.time)] = slot.childCount;
+            }
+          })
+        );
+        setChildCounts(counts);
+      }
       const map: Record<string, UserProfile> = {};
       users.forEach((u) => { map[u.uid] = u; });
       setUserMap(map);
@@ -80,19 +93,16 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
     setModified((prev) => new Set(prev).add(availabilities[availIndex].facilitatorId));
   };
 
-  const updateChildCount = (date: string, time: string, count: number) => {
-    if (!schedule) return;
-    const updatedDays = schedule.days.map((day) =>
-      day.date === date
-        ? {
-            ...day,
-            slots: day.slots.map((slot) =>
-              slot.time === time ? { ...slot, childCount: count || undefined } : slot
-            ),
-          }
-        : day
-    );
-    setSchedule({ ...schedule, days: updatedDays });
+  const updateChildCount = (slotKey: string, count: number) => {
+    setChildCounts((prev) => {
+      const updated = { ...prev };
+      if (count > 0) {
+        updated[slotKey] = count;
+      } else {
+        delete updated[slotKey];
+      }
+      return updated;
+    });
     setChildCountModified(true);
   };
 
@@ -104,7 +114,14 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
       }
     }
     if (childCountModified && schedule) {
-      await updateSchedule(monthId, { days: schedule.days });
+      const updatedDays = schedule.days.map((day) => ({
+        ...day,
+        slots: day.slots.map((slot) => {
+          const key = getSlotKey(day.date, slot.time);
+          return { ...slot, childCount: childCounts[key] || undefined };
+        }),
+      }));
+      await updateSchedule(monthId, { days: updatedDays });
       setChildCountModified(false);
     }
     setModified(new Set());
@@ -125,7 +142,7 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
   if (!schedule) return <div className="p-4">スケジュールが見つかりません</div>;
 
   // Build slot keys (only slots that need facilitator AND have classType set)
-  const slotKeys: { key: string; date: string; dateLabel: string; time: string; childCount?: number }[] = [];
+  const slotKeys: { key: string; date: string; dateLabel: string; time: string }[] = [];
   schedule.days.forEach((day) => {
     day.slots.forEach((slot) => {
       if (slot.needsFacilitator && slot.classType) {
@@ -134,7 +151,6 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
           date: day.date,
           dateLabel: formatDateShort(day.date),
           time: slot.time,
-          childCount: slot.childCount,
         });
       }
     });
@@ -191,7 +207,7 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
               const count = availabilities.filter(
                 (a) => !adminUidSet.has(a.facilitatorId) && a.slots[sk.key]
               ).length;
-              const required = getRequiredFacilitators(sk.childCount);
+              const required = getRequiredFacilitators(childCounts[sk.key]);
               const isFirst = !dateFirstRow.has(sk.date);
               if (isFirst) dateFirstRow.add(sk.date);
               return (
@@ -212,8 +228,8 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
                       type="number"
                       min={0}
                       max={20}
-                      value={sk.childCount || ""}
-                      onChange={(e) => updateChildCount(sk.date, sk.time, parseInt(e.target.value) || 0)}
+                      value={childCounts[sk.key] || ""}
+                      onChange={(e) => updateChildCount(sk.key, parseInt(e.target.value) || 0)}
                       placeholder="-"
                       className="w-10 border border-gray-200 rounded px-1 py-0.5 text-xs text-center focus:outline-none focus:ring-1 focus:ring-brand-500"
                     />
