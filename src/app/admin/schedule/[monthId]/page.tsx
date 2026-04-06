@@ -295,15 +295,16 @@ export default function AdminScheduleSetupPage({ params }: { params: Promise<{ m
                       {slot.classType && (
                         <div className="flex items-center gap-1">
                           <span className="text-xs text-gray-400">子ども</span>
-                          <input
-                            type="number"
-                            min={0}
-                            max={20}
-                            value={slot.childCount || ""}
+                          <select
+                            value={slot.childCount || 0}
                             onChange={(e) => setChildCount(dayIndex, slotIndex, parseInt(e.target.value) || 0)}
-                            placeholder="0"
-                            className="w-12 border border-gray-300 rounded-lg px-2 py-1 text-xs text-center focus:outline-none focus:ring-2 focus:ring-brand-500"
-                          />
+                            className="border border-gray-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+                          >
+                            <option value={0}>-</option>
+                            {[1,2,3,4,5,6,7,8,9,10,11,12].map((n) => (
+                              <option key={n} value={n}>{n}</option>
+                            ))}
+                          </select>
                           <span className="text-xs text-gray-400">名</span>
                         </div>
                       )}

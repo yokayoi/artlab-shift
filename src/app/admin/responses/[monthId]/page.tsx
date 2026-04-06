@@ -224,15 +224,16 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
                     {sk.time}
                   </td>
                   <td className="px-1 py-2 text-center text-xs text-gray-500">
-                    <input
-                      type="number"
-                      min={0}
-                      max={20}
-                      value={childCounts[sk.key] || ""}
+                    <select
+                      value={childCounts[sk.key] || 0}
                       onChange={(e) => updateChildCount(sk.key, parseInt(e.target.value) || 0)}
-                      placeholder="-"
-                      className="w-10 border border-gray-200 rounded px-1 py-0.5 text-xs text-center focus:outline-none focus:ring-1 focus:ring-brand-500"
-                    />
+                      className="w-12 border border-gray-200 rounded px-0.5 py-0.5 text-xs text-center focus:outline-none focus:ring-1 focus:ring-brand-500 bg-white"
+                    >
+                      <option value={0}>-</option>
+                      {[1,2,3,4,5,6,7,8,9,10,11,12].map((n) => (
+                        <option key={n} value={n}>{n}</option>
+                      ))}
+                    </select>
                     {required > 0 && (
                       <div className="text-[10px] text-gray-400">要{required}名</div>
                     )}
