@@ -41,10 +41,12 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
         getAllUsers(),
       ]);
       setSchedule(sched);
-      setAvailabilities(avails);
       const map: Record<string, UserProfile> = {};
       users.forEach((u) => { map[u.uid] = u; });
       setUserMap(map);
+      // 管理者を除外
+      const adminUids = new Set(users.filter((u) => u.role === "admin").map((u) => u.uid));
+      setAvailabilities(avails.filter((a) => !adminUids.has(a.facilitatorId)));
       if (existingShift) {
         setAssignments(existingShift.assignments);
         setAssignmentNames(existingShift.assignmentNames);
@@ -241,7 +243,7 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
                           isAssigned ? (
                             <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-brand-500 text-white text-xs font-bold">✓</span>
                           ) : (
-                            <span className="text-gray-400 text-lg leading-none">○</span>
+                            <span className="text-gray-600 text-lg leading-none">○</span>
                           )
                         ) : (
                           <span className="text-gray-200">—</span>
