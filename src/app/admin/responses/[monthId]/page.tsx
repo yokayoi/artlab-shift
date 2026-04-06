@@ -182,7 +182,7 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
   const dateFirstRow = new Set<string>();
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6">
+    <div className="max-w-[1440px] mx-auto px-4 py-6">
       <button onClick={() => router.push("/admin")} className="text-sm text-brand-600 mb-4 inline-block">
         ← ダッシュボード
       </button>
