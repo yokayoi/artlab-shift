@@ -442,14 +442,9 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                               >
                                 {isAvailable ? "○" : "—"}
                               </button>
-                              <div className="text-[10px] text-gray-400 mt-1">
-                                {voteCount}名希望
+                              <div className={`text-[10px] mt-1 ${shortage > 0 ? "text-red-600 font-medium" : "text-gray-400"}`}>
+                                {voteCount}名希望{shortage > 0 && ` / あと${shortage}名`}
                               </div>
-                              {shortage > 0 && (
-                                <div className="text-[10px] text-red-600 font-medium mt-0.5 bg-red-50 rounded px-1 py-0.5">
-                                  あと{shortage}名
-                                </div>
-                              )}
                             </>
                           ) : null}
                         </div>
