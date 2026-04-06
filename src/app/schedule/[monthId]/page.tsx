@@ -419,7 +419,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                                 子ども{slot.childCount}名
                               </div>
                               {required > 0 && (
-                                <div className="text-[10px] text-gray-400">
+                                <div className="text-[10px] text-gray-700 font-medium">
                                   必要{required}名
                                 </div>
                               )}
@@ -453,7 +453,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                                 {shortage > 0 ? (
                                   <span className="text-[10px]">あと<span className="text-xs">{shortage}</span>名希望</span>
                                 ) : (
-                                  <span className="text-[10px]">投票<span className="text-xs">{voteCount}</span>名</span>
+                                  <span className="text-[10px]">回答<span className="text-xs">{voteCount}</span>名</span>
                                 )}
                               </div>
                             </>
