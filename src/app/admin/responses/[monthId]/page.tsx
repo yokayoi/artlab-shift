@@ -4,8 +4,8 @@ import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
-import { getSchedule, getMonthAvailabilities, getAllUsers, saveAvailability, getFacilitators } from "@/lib/firebase/firestore";
-import { MonthSchedule, Availability, UserProfile } from "@/lib/types";
+import { getSchedule, getMonthAvailabilities, getAllUsers, saveAvailability, getFacilitators, updateSchedule } from "@/lib/firebase/firestore";
+import { MonthSchedule, Availability, UserProfile, DaySchedule } from "@/lib/types";
 import { getSlotKey, parseMonthId, formatDateShort } from "@/lib/utils/dateCalc";
 import { DEMO_MONTH_ID, getRequiredFacilitators } from "@/lib/utils/constants";
 
@@ -19,6 +19,7 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
   const [dataLoading, setDataLoading] = useState(true);
   const [modified, setModified] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
+  const [childCountModified, setChildCountModified] = useState(false);
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) router.push("/");
@@ -79,12 +80,32 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
     setModified((prev) => new Set(prev).add(availabilities[availIndex].facilitatorId));
   };
 
+  const updateChildCount = (date: string, time: string, count: number) => {
+    if (!schedule) return;
+    const updatedDays = schedule.days.map((day) =>
+      day.date === date
+        ? {
+            ...day,
+            slots: day.slots.map((slot) =>
+              slot.time === time ? { ...slot, childCount: count || undefined } : slot
+            ),
+          }
+        : day
+    );
+    setSchedule({ ...schedule, days: updatedDays });
+    setChildCountModified(true);
+  };
+
   const handleSave = async () => {
     setSaving(true);
     for (const avail of availabilities) {
       if (modified.has(avail.facilitatorId)) {
         await saveAvailability(monthId, avail.facilitatorId, avail.facilitatorName, avail.slots);
       }
+    }
+    if (childCountModified && schedule) {
+      await updateSchedule(monthId, { days: schedule.days });
+      setChildCountModified(false);
     }
     setModified(new Set());
     setSaving(false);
@@ -186,16 +207,18 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
                   <td className="px-2 py-2 text-gray-500 whitespace-nowrap text-xs">
                     {sk.time}
                   </td>
-                  <td className="px-2 py-2 text-center text-xs text-gray-500">
-                    {sk.childCount ? (
-                      <div>
-                        <span>{sk.childCount}名</span>
-                        {required > 0 && (
-                          <div className="text-[10px] text-gray-400">要{required}名</div>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-gray-300">-</span>
+                  <td className="px-1 py-2 text-center text-xs text-gray-500">
+                    <input
+                      type="number"
+                      min={0}
+                      max={20}
+                      value={sk.childCount || ""}
+                      onChange={(e) => updateChildCount(sk.date, sk.time, parseInt(e.target.value) || 0)}
+                      placeholder="-"
+                      className="w-10 border border-gray-200 rounded px-1 py-0.5 text-xs text-center focus:outline-none focus:ring-1 focus:ring-brand-500"
+                    />
+                    {required > 0 && (
+                      <div className="text-[10px] text-gray-400">要{required}名</div>
                     )}
                   </td>
                   <td className={`px-2 py-2 text-center font-bold bg-brand-50 ${
@@ -226,16 +249,20 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
         </table>
       </div>
 
-      {modified.size > 0 && (
+      {(modified.size > 0 || childCountModified) && (
         <div className="mt-4 flex items-center gap-3">
           <button
             onClick={handleSave}
             disabled={saving}
             className="px-6 py-2 bg-brand-600 text-white rounded-xl font-medium hover:bg-brand-700 disabled:bg-gray-300 transition-colors"
           >
-            {saving ? "保存中..." : `変更を保存（${modified.size}名）`}
+            {saving ? "保存中..." : "変更を保存"}
           </button>
-          <span className="text-xs text-gray-500">クリックで投票を変更できます</span>
+          <span className="text-xs text-gray-500">
+            {modified.size > 0 && `投票${modified.size}名`}
+            {modified.size > 0 && childCountModified && " / "}
+            {childCountModified && "子ども人数"}
+          </span>
         </div>
       )}
 
