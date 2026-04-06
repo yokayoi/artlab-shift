@@ -420,7 +420,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                               </div>
                               {required > 0 && (
                                 <div className="text-[10px] text-gray-700 font-medium">
-                                  必要{required}名
+                                  要{required}名
                                 </div>
                               )}
                             </div>
