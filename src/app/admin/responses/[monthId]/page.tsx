@@ -207,7 +207,10 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
                 子ども
               </th>
               <th className="px-2 py-2 font-medium text-brand-700 text-center whitespace-nowrap bg-brand-50 min-w-[48px]">
-                計
+                回答数
+              </th>
+              <th className="px-2 py-2 font-medium text-gray-500 text-center whitespace-nowrap min-w-[40px] text-xs">
+                過不足
               </th>
               {availabilities.map((avail) => (
                 <th key={avail.id} className="px-2 py-2 font-medium text-gray-500 text-center whitespace-nowrap text-xs min-w-[60px]">
@@ -248,15 +251,25 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
                       ))}
                     </select>
                     {required > 0 && (
-                      <div className="text-[10px] text-gray-400">要{required}名</div>
+                      <div className="text-[10px] text-gray-600 font-semibold">要{required}名</div>
                     )}
                   </td>
                   <td className={`px-2 py-2 text-center font-bold bg-brand-50 ${
                     required > 0 && count < required ? "text-red-600" : count === 0 ? "text-red-600" : count <= 2 ? "text-orange-600" : "text-brand-700"
                   }`}>
                     {count}
-                    {required > 0 && count < required && (
-                      <div className="text-[10px] font-normal text-red-500">不足</div>
+                  </td>
+                  <td className="px-2 py-2 text-center text-xs font-semibold whitespace-nowrap">
+                    {required > 0 ? (
+                      count < required ? (
+                        <span className="text-red-600">-{required - count}</span>
+                      ) : count > required ? (
+                        <span className="text-green-600">+{count - required}</span>
+                      ) : (
+                        <span className="text-gray-400">±0</span>
+                      )
+                    ) : (
+                      <span className="text-gray-300">—</span>
                     )}
                   </td>
                   {availabilities.map((avail, ai) => (
