@@ -100,20 +100,20 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
     setAssignmentNames({});
   };
 
-  // 自動割り当てアルゴリズム: 満遍なく配分
+  // AI割り当てアルゴリズム: 満遍なく＆連続スロット優先
   const runAutoAssign = () => {
     if (!schedule) return;
 
     const newAssignments: Record<string, string[]> = {};
     const newNames: Record<string, string[]> = {};
-    // 各ファシリテーターの割当回数カウンター
     const assignCount: Record<string, number> = {};
     availabilities.forEach((a) => { assignCount[a.facilitatorId] = 0; });
 
-    // スロット情報を収集
-    type SlotInfo = { key: string; required: number; availableUids: string[] };
-    const slots: SlotInfo[] = [];
+    // 日別にスロット情報を収集（時間順を維持）
+    type SlotInfo = { key: string; date: string; time: string; required: number; availableUids: string[] };
+    const slotsByDate: Record<string, SlotInfo[]> = {};
     schedule.days.forEach((day) => {
+      const daySlots: SlotInfo[] = [];
       day.slots.forEach((slot) => {
         if (!slot.needsFacilitator || !slot.classType) return;
         const slotKey = getSlotKey(day.date, slot.time);
@@ -121,37 +121,62 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
         const availableUids = availabilities
           .filter((a) => a.slots[slotKey])
           .map((a) => a.facilitatorId);
-        slots.push({ key: slotKey, required, availableUids });
+        daySlots.push({ key: slotKey, date: day.date, time: slot.time, required, availableUids });
       });
+      if (daySlots.length > 0) slotsByDate[day.date] = daySlots;
     });
 
-    // 埋めにくい順（応募者が少ない順）にソート、同数ならランダム
-    slots.sort((a, b) => {
-      const diff = a.availableUids.length - b.availableUids.length;
-      if (diff !== 0) return diff;
-      return Math.random() - 0.5;
-    });
+    // 日ごとに処理: 連続スロットを優先して割り当て
+    for (const date of Object.keys(slotsByDate)) {
+      const daySlots = slotsByDate[date];
 
-    // 各スロットで必要人数分を割当回数が少ない順に選択
-    for (const slot of slots) {
-      if (slot.required <= 0 || slot.availableUids.length === 0) {
-        newAssignments[slot.key] = [];
-        newNames[slot.key] = [];
-        continue;
-      }
-      // 割当回数が少ない順にソート（同数ならランダム）
-      const sorted = [...slot.availableUids].sort((a, b) => {
-        const diff = (assignCount[a] || 0) - (assignCount[b] || 0);
+      // まず埋めにくいスロット（応募者が少ない順）から処理
+      const sortedSlots = [...daySlots].sort((a, b) => {
+        const diff = a.availableUids.length - b.availableUids.length;
         if (diff !== 0) return diff;
         return Math.random() - 0.5;
       });
-      const picked = sorted.slice(0, slot.required);
-      newAssignments[slot.key] = picked;
-      newNames[slot.key] = picked.map((uid) => {
-        const avail = availabilities.find((a) => a.facilitatorId === uid);
-        return getName(uid, avail?.facilitatorName || "");
-      });
-      picked.forEach((uid) => { assignCount[uid] = (assignCount[uid] || 0) + 1; });
+
+      // 同日で既に割り当てられたUID → 連続ボーナス
+      const dayAssigned: Record<string, Set<string>> = {};
+
+      for (const slot of sortedSlots) {
+        if (slot.required <= 0 || slot.availableUids.length === 0) {
+          newAssignments[slot.key] = [];
+          newNames[slot.key] = [];
+          continue;
+        }
+
+        // 隣接スロットに既に割り当てられているUIDを取得
+        const slotIdx = daySlots.findIndex((s) => s.key === slot.key);
+        const adjacentAssigned = new Set<string>();
+        if (slotIdx > 0 && newAssignments[daySlots[slotIdx - 1].key]) {
+          newAssignments[daySlots[slotIdx - 1].key].forEach((uid) => adjacentAssigned.add(uid));
+        }
+        if (slotIdx < daySlots.length - 1 && newAssignments[daySlots[slotIdx + 1].key]) {
+          newAssignments[daySlots[slotIdx + 1].key].forEach((uid) => adjacentAssigned.add(uid));
+        }
+
+        // スコア: 割当回数が少ない＆隣接スロットに割当済みなら優先
+        const sorted = [...slot.availableUids].sort((a, b) => {
+          const adjA = adjacentAssigned.has(a) ? -3 : 0;
+          const adjB = adjacentAssigned.has(b) ? -3 : 0;
+          const countDiff = (assignCount[a] || 0) - (assignCount[b] || 0);
+          const score = (adjA + countDiff) - (adjB + countDiff);
+          // adjA - adjB + countA - countB
+          const total = (adjA - adjB) + ((assignCount[a] || 0) - (assignCount[b] || 0));
+          if (total !== 0) return total;
+          return Math.random() - 0.5;
+        });
+
+        const picked = sorted.slice(0, slot.required);
+        newAssignments[slot.key] = picked;
+        newNames[slot.key] = picked.map((uid) => {
+          const avail = availabilities.find((a) => a.facilitatorId === uid);
+          return getName(uid, avail?.facilitatorName || "");
+        });
+        picked.forEach((uid) => { assignCount[uid] = (assignCount[uid] || 0) + 1; });
+      }
     }
 
     setSimulation(newAssignments);
@@ -249,7 +274,7 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
             onClick={runAutoAssign}
             className="px-3 py-1.5 text-xs font-medium text-white bg-orange-500 rounded-lg hover:bg-orange-600"
           >
-            自動設定
+            AI設定
           </button>
           <button
             onClick={handleAssignAll}
