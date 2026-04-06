@@ -194,26 +194,26 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm table-fixed">
           <thead>
             <tr className="border-b border-gray-200">
-              <th className="text-left px-3 py-2 font-medium text-gray-600 sticky left-0 bg-white min-w-[80px]">
+              <th className="text-left px-3 py-2 font-medium text-gray-600 sticky left-0 bg-white w-[90px]">
                 日付
               </th>
-              <th className="text-left px-2 py-2 font-medium text-gray-600 min-w-[50px]">
+              <th className="text-left px-2 py-2 font-medium text-gray-600 w-[60px]">
                 時間
               </th>
-              <th className="px-2 py-2 font-medium text-gray-500 text-center whitespace-nowrap min-w-[40px] text-xs">
+              <th className="px-2 py-2 font-medium text-gray-500 text-center whitespace-nowrap w-[64px] text-xs">
                 子ども
               </th>
-              <th className="px-2 py-2 font-medium text-brand-700 text-center whitespace-nowrap bg-brand-50 min-w-[48px]">
+              <th className="px-2 py-2 font-medium text-brand-700 text-center whitespace-nowrap bg-brand-50 w-[56px]">
                 回答数
               </th>
-              <th className="px-2 py-2 font-medium text-gray-500 text-center whitespace-nowrap min-w-[40px] text-xs">
+              <th className="px-2 py-2 font-medium text-gray-500 text-center whitespace-nowrap w-[52px] text-xs">
                 過不足
               </th>
               {availabilities.map((avail) => (
-                <th key={avail.id} className="px-2 py-2 font-medium text-gray-500 text-center whitespace-nowrap text-xs min-w-[60px]">
+                <th key={avail.id} className="px-3 py-2 font-medium text-gray-500 text-center whitespace-nowrap text-xs">
                   {userMap[avail.facilitatorId]?.nickname || avail.facilitatorName}
                 </th>
               ))}
