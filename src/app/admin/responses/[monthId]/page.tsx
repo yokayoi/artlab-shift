@@ -84,14 +84,19 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
   }, [user, isAdmin, monthId]);
 
   const toggleSlot = (availIndex: number, slotKey: string) => {
+    const avail = availabilities[availIndex];
+    const name = userMap[avail.facilitatorId]?.nickname || avail.facilitatorName;
+    const current = avail.slots[slotKey];
+    const action = current ? "取り消し" : "追加";
+    if (!confirm(`${name}さんの投票を${action}しますか？`)) return;
     setAvailabilities((prev) => {
       const updated = [...prev];
-      const avail = { ...updated[availIndex] };
-      avail.slots = { ...avail.slots, [slotKey]: !avail.slots[slotKey] };
-      updated[availIndex] = avail;
+      const a = { ...updated[availIndex] };
+      a.slots = { ...a.slots, [slotKey]: !a.slots[slotKey] };
+      updated[availIndex] = a;
       return updated;
     });
-    setModified((prev) => new Set(prev).add(availabilities[availIndex].facilitatorId));
+    setModified((prev) => new Set(prev).add(avail.facilitatorId));
   };
 
   const updateChildCount = (slotKey: string, count: number) => {

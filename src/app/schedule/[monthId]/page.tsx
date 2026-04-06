@@ -3,14 +3,14 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { getSchedule, getAvailability, saveAvailability, getShift, saveShift, getActiveAnnouncements, getCollectingSchedules, getAttendance, checkIn as firestoreCheckIn, checkOut as firestoreCheckOut, editMyAttendanceTime, resetDayAttendance, getMonthAvailabilities, getAllUsers } from "@/lib/firebase/firestore";
+import { getSchedule, getAvailability, saveAvailability, getShift, saveShift, getActiveAnnouncements, getCollectingSchedules, getAttendance, checkIn as firestoreCheckIn, checkOut as firestoreCheckOut, editMyAttendanceTime, resetDayAttendance, getMonthAvailabilities, getAllUsers, updateSchedule } from "@/lib/firebase/firestore";
 import { MonthSchedule, Availability, ShiftAssignment, Announcement, Attendance, UserProfile } from "@/lib/types";
 import { getSlotKey, parseMonthId, formatMonthId, formatDateShort, formatDeadline, isDeadlinePassed, getSlotDate, getTodayString, timestampToTimeString, datetimeLocalToTimestamp, timestampToDatetimeLocal } from "@/lib/utils/dateCalc";
 import { CLASS_TYPE_COLORS, STATUS_LABELS, CLASS_DURATION_MINUTES, TRAINING_MAX, LAUNCH_YEAR, LAUNCH_MONTH, DEMO_MONTH_ID, getTier, getNextTier, isTraining, getEffectiveRate, getRequiredFacilitators } from "@/lib/utils/constants";
 
 export default function FacilitatorSchedulePage({ params }: { params: Promise<{ monthId: string }> }) {
   const { monthId } = use(params);
-  const { user, profile, loading } = useAuth();
+  const { user, profile, isAdmin, loading } = useAuth();
   const router = useRouter();
   const [schedule, setSchedule] = useState<MonthSchedule | null>(null);
   const [myAvailability, setMyAvailability] = useState<Record<string, boolean>>({});
@@ -413,7 +413,41 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                           >
                             {slot.classType}
                           </div>
-                          {slot.childCount ? (
+                          {isAdmin && schedule.status === "collecting" ? (
+                            <div className="mb-1">
+                              <div className="flex items-center justify-center gap-0.5">
+                                <span className="text-[10px] text-gray-500">子</span>
+                                <select
+                                  value={slot.childCount || 0}
+                                  onChange={async (e) => {
+                                    const count = parseInt(e.target.value) || 0;
+                                    const updatedDays = schedule.days.map((d) => ({
+                                      date: d.date, dayLabel: d.dayLabel,
+                                      slots: d.slots.map((s) =>
+                                        s.time === slot.time && d.date === day.date
+                                          ? { time: s.time, classType: s.classType, needsFacilitator: s.needsFacilitator, ...(count > 0 ? { childCount: count } : {}) }
+                                          : { time: s.time, classType: s.classType, needsFacilitator: s.needsFacilitator, ...(s.childCount ? { childCount: s.childCount } : {}) }
+                                      ),
+                                    }));
+                                    await updateSchedule(monthId, { days: updatedDays });
+                                    setSchedule({ ...schedule, days: updatedDays } as MonthSchedule);
+                                  }}
+                                  className="w-10 border border-gray-200 rounded px-0 py-0 text-[10px] text-center bg-white focus:outline-none focus:ring-1 focus:ring-brand-500"
+                                >
+                                  <option value={0}>-</option>
+                                  {[1,2,3,4,5,6,7,8,9,10,11,12].map((n) => (
+                                    <option key={n} value={n}>{n}</option>
+                                  ))}
+                                </select>
+                                <span className="text-[10px] text-gray-500">名</span>
+                              </div>
+                              {getRequiredFacilitators(slot.childCount) > 0 && (
+                                <div className="text-[10px] text-gray-700 font-medium">
+                                  要{getRequiredFacilitators(slot.childCount)}名
+                                </div>
+                              )}
+                            </div>
+                          ) : slot.childCount ? (
                             <div className="mb-1">
                               <div className="text-[10px] text-gray-700 font-medium">
                                 子ども{slot.childCount}名
