@@ -452,10 +452,15 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                               <div className={`mt-1 ${shortage > 0 ? "text-red-600 font-medium" : "text-green-600"}`}>
                                 {shortage > 0 ? (
                                   <span className="text-[10px]">あと<span className="text-sm font-bold">{shortage}</span>名希望</span>
-                                ) : required > 0 ? (
+                                ) : required > 0 && voteCount === required ? (
                                   <>
                                     <span className="text-[10px]">回答<span className="text-xs">{voteCount}</span>名</span>
-                                    <div className="text-[10px]">✓ 充足</div>
+                                    <div className="text-[10px]">✓ OK</div>
+                                  </>
+                                ) : required > 0 && voteCount > required ? (
+                                  <>
+                                    <span className="text-[10px]">回答<span className="text-xs">{voteCount}</span>名</span>
+                                    <div className="text-[10px] text-blue-600">+{voteCount - required}名</div>
                                   </>
                                 ) : (
                                   <span className="text-[10px] text-gray-400">回答<span className="text-xs">{voteCount}</span>名</span>
