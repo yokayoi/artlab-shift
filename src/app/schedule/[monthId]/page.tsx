@@ -443,7 +443,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                                 {isAvailable ? "○" : "—"}
                               </button>
                               <div className={`text-[10px] mt-1 ${shortage > 0 ? "text-red-600 font-medium" : "text-gray-400"}`}>
-                                {voteCount}名希望{shortage > 0 && ` / あと${shortage}名`}
+                                {voteCount}名希望{required > 0 && ` / 必要${required}名`}
                               </div>
                             </>
                           ) : null}
