@@ -52,11 +52,12 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
       users.forEach((u) => { map[u.uid] = u; });
       setUserMap(map);
 
-      // 未回答のファシリテーター（+管理者）も空の回答として追加
+      // 管理者UIDセット
+      const adminUids = new Set(users.filter((u) => u.role === "admin").map((u) => u.uid));
+      // 管理者を除外し、未回答のファシリテーターも空の回答として追加
       const respondedUids = new Set(avails.map((a) => a.facilitatorId));
-      const allFacs = [...avails];
-      const allStaff = [...facs, ...users.filter((u) => u.role === "admin")];
-      for (const fac of allStaff) {
+      const allFacs = avails.filter((a) => !adminUids.has(a.facilitatorId));
+      for (const fac of facs) {
         if (!respondedUids.has(fac.uid)) {
           const emptySlots: Record<string, boolean> = {};
           if (sched) {
@@ -168,9 +169,6 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
     });
   });
 
-  // 管理者UIDセット
-  const adminUidSet = new Set(Object.values(userMap).filter((u) => u.role === "admin").map((u) => u.uid));
-
   // Calculate rowSpan for date grouping
   const dateRowSpans: Record<string, number> = {};
   slotKeys.forEach((sk) => {
@@ -216,9 +214,7 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
           <tbody>
             {slotKeys.map((sk) => {
               // admin除外の投票数
-              const count = availabilities.filter(
-                (a) => !adminUidSet.has(a.facilitatorId) && a.slots[sk.key]
-              ).length;
+              const count = availabilities.filter((a) => a.slots[sk.key]).length;
               const required = getRequiredFacilitators(childCounts[sk.key]);
               const isFirst = !dateFirstRow.has(sk.date);
               if (isFirst) dateFirstRow.add(sk.date);
