@@ -115,13 +115,25 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
     }
     if (childCountModified && schedule) {
       const updatedDays = schedule.days.map((day) => ({
-        ...day,
+        date: day.date,
+        dayLabel: day.dayLabel,
         slots: day.slots.map((slot) => {
           const key = getSlotKey(day.date, slot.time);
-          return { ...slot, childCount: childCounts[key] || undefined };
+          const cc = childCounts[key];
+          return {
+            time: slot.time,
+            classType: slot.classType,
+            needsFacilitator: slot.needsFacilitator,
+            ...(cc ? { childCount: cc } : {}),
+          };
         }),
       }));
-      await updateSchedule(monthId, { days: updatedDays });
+      try {
+        await updateSchedule(monthId, { days: updatedDays });
+      } catch (e) {
+        console.error("子ども人数の保存に失敗:", e);
+        alert("保存に失敗しました。もう一度お試しください。");
+      }
       setChildCountModified(false);
     }
     setModified(new Set());
