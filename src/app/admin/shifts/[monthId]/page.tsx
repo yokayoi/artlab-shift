@@ -183,6 +183,7 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
             <tr className="border-b border-gray-200">
               <th className="text-left px-3 py-2 font-medium text-gray-600 sticky left-0 bg-white w-[90px]">日付</th>
               <th className="text-left px-2 py-2 font-medium text-gray-600 w-[60px]">時間</th>
+              <th className="px-2 py-2 font-medium text-gray-500 text-center whitespace-nowrap w-[64px] text-xs">子ども</th>
               <th className="px-2 py-2 font-medium text-brand-700 text-center whitespace-nowrap bg-brand-50 w-[56px]">割当</th>
               <th className="px-2 py-2 font-medium text-gray-500 text-center whitespace-nowrap w-[52px] text-xs">過不足</th>
               {facilitatorIds.map((uid) => (
@@ -209,6 +210,12 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
                     </td>
                   )}
                   <td className="px-2 py-2 text-gray-500 whitespace-nowrap text-xs">{sk.time}</td>
+                  <td className="px-1 py-2 text-center text-xs text-gray-500">
+                    {sk.childCount || <span className="text-gray-300">—</span>}
+                    {required > 0 && (
+                      <div className="text-[10px] text-gray-600 font-semibold">要{required}名</div>
+                    )}
+                  </td>
                   <td className={`px-2 py-2 text-center font-bold bg-brand-50 ${
                     required > 0 && assigned.length < required ? "text-red-600" : assigned.length === 0 ? "text-gray-400" : "text-brand-700"
                   }`}>
