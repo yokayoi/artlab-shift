@@ -334,8 +334,8 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
         </div>
       ) : (
         <>
-          {/* 公開済みシフト表（トップ表示） */}
-          {isPublished && shift && (() => {
+          {/* シフト表（トップ表示） */}
+          {shift && (() => {
             return (
               <div className="mb-6 max-w-[640px] mx-auto bg-white rounded-xl border border-gray-200 overflow-hidden">
                 <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
@@ -446,8 +446,8 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
             );
           })()}
 
-          {/* チェックイン・チェックアウト（シフト確定後） */}
-          {isPublished && shift && (
+          {/* チェックイン・チェックアウト（シフト作成後） */}
+          {shift && (
             <div className="mb-6 space-y-3">
               {schedule.days.map((day) => {
                 const myDaySlots = day.slots.filter((slot) => {
