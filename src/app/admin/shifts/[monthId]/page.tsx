@@ -729,7 +729,7 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
           </div>
 
           {/* シフト表（HTML） */}
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <div className="max-w-[640px] mx-auto bg-white border border-gray-200 rounded-xl overflow-hidden">
             <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
               <h3 className="text-sm font-bold text-gray-700">シフト表</h3>
             </div>
@@ -742,9 +742,13 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
                     <div className="bg-gray-100 px-3 py-1.5 rounded-md mb-1">
                       <span className="text-sm font-bold text-gray-700">{formatDateShort(day.date)}　{day.dayLabel}</span>
                     </div>
-                    {activeSlots.map((slot) => {
+                    {activeSlots.map((slot, slotIdx) => {
                       const key = getSlotKey(day.date, slot.time);
-                      const assigned = (assignments[key] || []).map((uid) => getDisplayName(uid) + "さん");
+                      const assignedUids = assignments[key] || [];
+                      const prevUids = slotIdx > 0
+                        ? (assignments[getSlotKey(day.date, activeSlots[slotIdx - 1].time)] || [])
+                        : [];
+                      const continuingUids = new Set(assignedUids.filter((uid) => prevUids.includes(uid)));
                       const colors = CLASS_TYPE_COLORS[slot.classType!];
                       return (
                         <div key={key} className="px-3 py-1.5 border-b border-gray-100">
@@ -757,8 +761,12 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
                               <span className="text-[11px] text-green-600 shrink-0">子{slot.childCount}名</span>
                             )}
                           </div>
-                          <div className="mt-0.5 pl-11 text-sm font-medium text-gray-700">
-                            {assigned.length > 0 ? assigned.join("、") : "—"}
+                          <div className="mt-0.5 pl-11">
+                            {assignedUids.length > 0 ? assignedUids.map((uid) => (
+                              <div key={uid} className={`text-sm font-medium ${continuingUids.has(uid) ? "text-gray-400" : "text-gray-700"}`}>
+                                {continuingUids.has(uid) ? `〃${getDisplayName(uid)}さん` : `${getDisplayName(uid)}さん`}
+                              </div>
+                            )) : <div className="text-sm text-gray-400">—</div>}
                           </div>
                         </div>
                       );

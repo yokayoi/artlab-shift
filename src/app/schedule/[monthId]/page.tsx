@@ -670,7 +670,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
           {/* 公開済みシフト表 */}
           {isPublished && shift && (() => {
             return (
-              <div className="mt-6 bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div className="mt-6 max-w-[640px] mx-auto bg-white rounded-xl border border-gray-200 overflow-hidden">
                 <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
                   <h3 className="text-sm font-bold text-gray-700">{month}月 シフト表</h3>
                 </div>
@@ -683,10 +683,15 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                         <div className="bg-gray-100 px-3 py-1.5 rounded-md mb-1">
                           <span className="text-sm font-bold text-gray-700">{formatDateShort(day.date)}　{day.dayLabel}</span>
                         </div>
-                        {activeSlots.map((slot) => {
+                        {activeSlots.map((slot, slotIdx) => {
                           const key = getSlotKey(day.date, slot.time);
+                          const assignedUids = shift.assignments?.[key] || [];
                           const assignedNames = shift.assignmentNames?.[key] || [];
-                          const isMe = shift.assignments?.[key]?.includes(user?.uid || "");
+                          const prevUids = slotIdx > 0
+                            ? (shift.assignments?.[getSlotKey(day.date, activeSlots[slotIdx - 1].time)] || [])
+                            : [];
+                          const continuingUids = new Set(assignedUids.filter((uid) => prevUids.includes(uid)));
+                          const isMe = assignedUids.includes(user?.uid || "");
                           const colors = CLASS_TYPE_COLORS[slot.classType!];
                           return (
                             <div key={key} className="px-3 py-1.5 border-b border-gray-100">
@@ -699,8 +704,17 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                                   <span className="text-[11px] text-green-600 shrink-0">子{slot.childCount}名</span>
                                 )}
                               </div>
-                              <div className={`mt-0.5 pl-11 text-sm font-medium ${isMe ? "text-brand-700" : "text-gray-700"}`}>
-                                {assignedNames.length > 0 ? assignedNames.map((n) => `${n}さん`).join("、") : "—"}
+                              <div className="mt-0.5 pl-11">
+                                {assignedNames.length > 0 ? assignedUids.map((uid, i) => {
+                                  const name = assignedNames[i] || uid;
+                                  const isContinuing = continuingUids.has(uid);
+                                  const isMeUid = uid === user?.uid;
+                                  return (
+                                    <div key={uid} className={`text-sm font-medium ${isContinuing ? "text-gray-400" : isMeUid ? "text-brand-700" : "text-gray-700"}`}>
+                                      {isContinuing ? `〃${name}さん` : `${name}さん`}
+                                    </div>
+                                  );
+                                }) : <div className="text-sm text-gray-400">—</div>}
                               </div>
                             </div>
                           );
