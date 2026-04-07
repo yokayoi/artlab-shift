@@ -782,7 +782,7 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
                                   color: cell.assigned ? "#374151" : undefined,
                                 }}
                               >
-                                {cell.assigned ? `${getDisplayName(uid)}さん` : ""}
+                                {cell.assigned ? <>{getDisplayName(uid)}<br /><span style={{ fontSize: 11 }}>さん</span></> : ""}
                               </td>
                             );
                           })}
@@ -908,11 +908,11 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
                                   <td
                                     key={uid}
                                     rowSpan={cell.rowSpan}
-                                    className={`border border-gray-200 px-3 py-2 text-center text-sm font-medium align-middle whitespace-nowrap ${
+                                    className={`border border-gray-200 px-2 py-2 text-center text-sm font-medium align-middle ${
                                       cell.assigned ? "bg-brand-50 text-gray-700" : ""
                                     }`}
                                   >
-                                    {cell.assigned ? `${getDisplayName(uid)}さん` : ""}
+                                    {cell.assigned ? <>{getDisplayName(uid)}<br /><span className="text-xs">さん</span></> : ""}
                                   </td>
                                 );
                               })}

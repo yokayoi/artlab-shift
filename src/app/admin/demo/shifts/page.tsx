@@ -818,12 +818,11 @@ export default function DemoShiftsPage() {
                                   fontSize: 13,
                                   fontWeight: 500,
                                   verticalAlign: "middle",
-                                  whiteSpace: "nowrap",
                                   backgroundColor: cell.assigned ? "#eff6ff" : undefined,
                                   color: cell.assigned ? "#374151" : undefined,
                                 }}
                               >
-                                {cell.assigned ? `${getName(uid)}さん` : ""}
+                                {cell.assigned ? <>{getName(uid)}<br /><span style={{ fontSize: 11 }}>さん</span></> : ""}
                               </td>
                             );
                           })}
@@ -956,11 +955,11 @@ export default function DemoShiftsPage() {
                                       <td
                                         key={uid}
                                         rowSpan={cell.rowSpan}
-                                        className={`border border-gray-200 px-3 py-2 text-center text-sm font-medium align-middle whitespace-nowrap ${
+                                        className={`border border-gray-200 px-2 py-2 text-center text-sm font-medium align-middle ${
                                           cell.assigned ? "bg-brand-50 text-gray-700" : ""
                                         }`}
                                       >
-                                        {cell.assigned ? `${getName(uid)}さん` : ""}
+                                        {cell.assigned ? <>{getName(uid)}<br /><span className="text-xs">さん</span></> : ""}
                                       </td>
                                     );
                                   })}
