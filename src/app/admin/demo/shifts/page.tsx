@@ -95,6 +95,10 @@ const MOCK_AVAILABILITY: Record<string, Record<string, boolean>> = {
   },
 };
 
+const DEMO_HOURLY_RATE = 1500;
+const SLOT_EFFECTIVE_MINUTES = 100; // 70分クラス + 前後15分ずつ
+const SLOT_PAY = Math.round(DEMO_HOURLY_RATE * (SLOT_EFFECTIVE_MINUTES / 60)); // ¥2,500
+
 const MOCK_SLOT_NOTES: Record<string, string> = {
   "2026-04-11_14:30": "体験会あり",
   "2026-04-18_10:30": "振替対応",
@@ -117,6 +121,7 @@ export default function DemoShiftsPage() {
   const [copied, setCopied] = useState(false);
   const [shiftImageUrl, setShiftImageUrl] = useState<string | null>(null);
   const [generatingImage, setGeneratingImage] = useState(false);
+  const [simulationApplied, setSimulationApplied] = useState(false);
   const shiftTableRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -243,6 +248,7 @@ export default function DemoShiftsPage() {
     setAssignmentNames(simulationNames);
     setSimulation(null);
     setSimulationNames(null);
+    setSimulationApplied(true);
   };
 
   const handlePublish = () => {
@@ -321,6 +327,42 @@ export default function DemoShiftsPage() {
     });
     return counts;
   })() : null;
+
+  // 現在の割当に基づく給与サマリー
+  const payrollSummary = (() => {
+    const counts: Record<string, number> = {};
+    facilitatorIds.forEach((uid) => { counts[uid] = 0; });
+    Object.values(assignments).forEach((uids) => {
+      uids.forEach((uid) => { counts[uid] = (counts[uid] || 0) + 1; });
+    });
+    return counts;
+  })();
+  const totalAssigned = Object.values(payrollSummary).reduce((sum, c) => sum + c, 0);
+  const totalPay = totalAssigned * SLOT_PAY;
+
+  // 不足スロット情報
+  const shortageSlots = slotKeys.filter((sk) => {
+    const assigned = assignments[sk.key] || [];
+    const required = getRequiredFacilitators(sk.childCount);
+    return required > 0 && assigned.length < required;
+  }).map((sk) => {
+    const assigned = assignments[sk.key] || [];
+    const required = getRequiredFacilitators(sk.childCount);
+    return { ...sk, shortage: required - assigned.length };
+  });
+
+  // 案内文を動的に生成
+  const buildAnnouncementText = () => {
+    let text = ANNOUNCEMENT_TEXT;
+    if (shortageSlots.length > 0) {
+      text += "\n\n【人数不足のコマ】\n";
+      text += shortageSlots.map((s) =>
+        `${s.dateLabel} ${s.time} ${s.classType}（あと${s.shortage}名）`
+      ).join("\n");
+      text += "\n入れる方いらっしゃいましたらご連絡ください。";
+    }
+    return text;
+  };
 
   return (
     <div className="max-w-[1440px] mx-auto px-4 py-6">
@@ -465,6 +507,36 @@ export default function DemoShiftsPage() {
         </table>
       </div>
 
+      {/* 手動調整メッセージ */}
+      {simulationApplied && !simulation && (
+        <div className="mt-3 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-xs text-blue-700">シミュレーション結果を適用しました。上の表でファシリテーターをクリックして手動で調整できます。</p>
+        </div>
+      )}
+
+      {/* 給与見積サマリー */}
+      {totalAssigned > 0 && (
+        <div className="mt-4 bg-white rounded-xl border border-gray-200 p-4">
+          <h3 className="text-sm font-bold text-gray-700 mb-3">給与見積（¥{DEMO_HOURLY_RATE.toLocaleString()}/h × {SLOT_EFFECTIVE_MINUTES}分/コマ = ¥{SLOT_PAY.toLocaleString()}/コマ）</h3>
+          <div className="flex flex-wrap gap-3 mb-3">
+            {facilitatorIds.map((uid) => {
+              const count = payrollSummary[uid] || 0;
+              if (count === 0) return null;
+              return (
+                <div key={uid} className="bg-gray-50 rounded-lg px-3 py-2 border border-gray-200 text-sm">
+                  <span className="font-medium text-gray-700">{getName(uid)}</span>
+                  <span className="ml-2 text-gray-500">{count}コマ</span>
+                  <span className="ml-2 font-bold text-brand-700">¥{(count * SLOT_PAY).toLocaleString()}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="text-right text-sm font-bold text-gray-700">
+            合計: <span className="text-lg text-brand-700">¥{totalPay.toLocaleString()}</span>
+          </div>
+        </div>
+      )}
+
       {/* シミュレーション結果 */}
       {simulation && simSummary && (() => {
         const simDateFirstRow = new Set<string>();
@@ -472,13 +544,20 @@ export default function DemoShiftsPage() {
           <div className="mt-8 border-2 border-orange-300 rounded-xl bg-orange-50 p-4">
             <h2 className="text-lg font-bold text-orange-700 mb-4">シミュレーション結果</h2>
 
-            <div className="flex flex-wrap gap-3 mb-4">
-              {facilitatorIds.map((uid) => (
-                <div key={uid} className="bg-white rounded-lg px-3 py-2 border border-orange-200 text-sm">
-                  <span className="font-medium text-gray-700">{getName(uid)}</span>
-                  <span className="ml-2 font-bold text-orange-600">{simSummary[uid] || 0}回</span>
-                </div>
-              ))}
+            <div className="flex flex-wrap gap-3 mb-3">
+              {facilitatorIds.map((uid) => {
+                const count = simSummary[uid] || 0;
+                return (
+                  <div key={uid} className="bg-white rounded-lg px-3 py-2 border border-orange-200 text-sm">
+                    <span className="font-medium text-gray-700">{getName(uid)}</span>
+                    <span className="ml-2 font-bold text-orange-600">{count}回</span>
+                    <span className="ml-1 text-gray-500">¥{(count * SLOT_PAY).toLocaleString()}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mb-4 text-right text-sm font-bold text-gray-600">
+              合計: ¥{(Object.values(simSummary).reduce((s, c) => s + c, 0) * SLOT_PAY).toLocaleString()}
             </div>
 
             <div className="bg-white rounded-xl border border-orange-200 overflow-x-auto">
@@ -701,7 +780,7 @@ export default function DemoShiftsPage() {
                   <h3 className="text-sm font-bold text-gray-700">LINE案内文</h3>
                   <button
                     onClick={() => {
-                      navigator.clipboard.writeText(ANNOUNCEMENT_TEXT);
+                      navigator.clipboard.writeText(buildAnnouncementText());
                       setCopied(true);
                       setTimeout(() => setCopied(false), 2000);
                     }}
@@ -715,7 +794,7 @@ export default function DemoShiftsPage() {
                   </button>
                 </div>
                 <pre className="px-4 py-3 text-sm text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">
-                  {ANNOUNCEMENT_TEXT}
+                  {buildAnnouncementText()}
                 </pre>
               </div>
             </>
