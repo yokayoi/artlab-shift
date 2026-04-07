@@ -438,13 +438,13 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                                   <td className="border border-gray-200 px-2 py-2 align-top w-20 text-left">
                                     <div className="flex items-center gap-1.5">
                                       <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: colors.bg, border: `2px solid ${colors.border}` }} />
-                                      <span className="font-bold text-gray-600 text-sm">{slot.time}</span>
+                                      <span className="font-bold text-gray-600 text-sm max-sm:text-xs">{slot.time}</span>
                                     </div>
                                     {slot.childCount && (
-                                      <div className="text-sm font-bold text-green-600 mt-0.5">子{slot.childCount}名</div>
+                                      <div className="text-sm max-sm:text-xs font-bold text-green-600 mt-0.5">子{slot.childCount}名</div>
                                     )}
                                     {isShort && (
-                                      <div className="text-[11px] text-red-600 font-bold mt-0.5">⚠ あと{required - assignedCount}名</div>
+                                      <div className="text-[11px] max-sm:text-[10px] text-red-600 font-bold mt-0.5">⚠ あと{required - assignedCount}名</div>
                                     )}
                                   </td>
                                   {dayFacUids.map((uid) => {
