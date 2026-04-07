@@ -101,6 +101,7 @@ export default function DemoShiftsPage() {
   const [assignmentNames, setAssignmentNames] = useState<Record<string, string[]>>({});
   const [simulation, setSimulation] = useState<Record<string, string[]> | null>(null);
   const [simulationNames, setSimulationNames] = useState<Record<string, string[]> | null>(null);
+  const [completed, setCompleted] = useState<"saved" | "published" | null>(null);
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) router.push("/");
@@ -524,12 +525,43 @@ export default function DemoShiftsPage() {
 
       <div className="mt-6 flex gap-3">
         <button
-          onClick={handleClearAll}
+          onClick={() => setCompleted("saved")}
           className="px-6 py-3 rounded-xl font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-colors"
         >
-          リセット
+          シフトを保存（下書き）
+        </button>
+        <button
+          onClick={() => setCompleted("published")}
+          className="px-6 py-3 rounded-xl font-medium text-white bg-green-600 hover:bg-green-700 transition-colors"
+        >
+          シフトを公開する
         </button>
       </div>
+
+      {completed && (
+        <div className="mt-6 px-4 py-4 bg-green-50 border border-green-200 rounded-xl">
+          <p className="text-sm text-green-800 font-medium">
+            {completed === "published"
+              ? "シフトを公開しました（デモ）"
+              : "シフトを下書き保存しました（デモ）"}
+          </p>
+          <p className="text-xs text-green-600 mt-1">実際のデータには影響していません。</p>
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={() => { setCompleted(null); handleClearAll(); }}
+              className="px-4 py-2 text-sm font-medium text-green-700 bg-white border border-green-300 rounded-lg hover:bg-green-50 transition-colors"
+            >
+              最初からやり直す
+            </button>
+            <button
+              onClick={() => router.push("/admin")}
+              className="px-4 py-2 text-sm font-medium text-green-700 bg-white border border-green-300 rounded-lg hover:bg-green-50 transition-colors"
+            >
+              ダッシュボードへ戻る
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
