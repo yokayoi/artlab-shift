@@ -670,37 +670,107 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
 
       {/* 画像生成用の非表示シフト表 */}
       <div style={{ position: "absolute", left: "-9999px", top: 0 }}>
-        <div ref={shiftTableRef} style={{ width: 420, padding: "20px 16px", backgroundColor: "#fff", fontFamily: "sans-serif" }}>
-          <div style={{ textAlign: "center", marginBottom: 20 }}>
+        <div ref={shiftTableRef} style={{ width: 480, padding: "20px 16px", backgroundColor: "#fff", fontFamily: "sans-serif" }}>
+          <div style={{ textAlign: "center", marginBottom: 12 }}>
             <div style={{ fontSize: 18, fontWeight: "bold", color: "#1f2937" }}>{month}月 シフト表</div>
+          </div>
+          <div style={{ display: "flex", gap: 12, justifyContent: "center", marginBottom: 16 }}>
+            {["カリキュラム", "オーダーメイド"].map((type) => {
+              const c = CLASS_TYPE_COLORS[type];
+              return (
+                <span key={type} style={{ backgroundColor: c.bg, color: c.text, padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 500 }}>
+                  {type}
+                </span>
+              );
+            })}
           </div>
           {schedule.days.map((day) => {
             const activeSlots = day.slots.filter((s) => s.needsFacilitator && s.classType);
             if (activeSlots.length === 0) return null;
+            const dayFacUids: string[] = [];
+            activeSlots.forEach((slot) => {
+              (assignments[getSlotKey(day.date, slot.time)] || []).forEach((uid) => {
+                if (!dayFacUids.includes(uid)) dayFacUids.push(uid);
+              });
+            });
+            const facCells: Record<string, { show: boolean; rowSpan: number; assigned: boolean }[]> = {};
+            dayFacUids.forEach((uid) => {
+              const cells: { show: boolean; rowSpan: number; assigned: boolean }[] = [];
+              let i = 0;
+              while (i < activeSlots.length) {
+                const k = getSlotKey(day.date, activeSlots[i].time);
+                if ((assignments[k] || []).includes(uid)) {
+                  let span = 1;
+                  while (i + span < activeSlots.length) {
+                    const nk = getSlotKey(day.date, activeSlots[i + span].time);
+                    if ((assignments[nk] || []).includes(uid)) span++;
+                    else break;
+                  }
+                  cells.push({ show: true, rowSpan: span, assigned: true });
+                  for (let j = 1; j < span; j++) cells.push({ show: false, rowSpan: 0, assigned: true });
+                  i += span;
+                } else {
+                  cells.push({ show: true, rowSpan: 1, assigned: false });
+                  i++;
+                }
+              }
+              facCells[uid] = cells;
+            });
             return (
-              <div key={day.date} style={{ marginBottom: 20 }}>
-                <div style={{ backgroundColor: "#f3f4f6", padding: "6px 12px", borderRadius: 6, marginBottom: 4, fontSize: 15, fontWeight: "bold", color: "#374151" }}>
-                  {formatDateShort(day.date)}　{day.dayLabel}
+              <div key={day.date} style={{ marginBottom: 16 }}>
+                <div style={{ backgroundColor: "#f3f4f6", padding: "6px 12px", borderRadius: 6, marginBottom: 4, fontSize: 14, fontWeight: "bold", color: "#374151" }}>
+                  {formatDateShort(day.date)}
                 </div>
-                {activeSlots.map((slot) => {
-                  const key = getSlotKey(day.date, slot.time);
-                  const assigned = (assignments[key] || []).map((uid) => getDisplayName(uid) + "さん");
-                  const colors = CLASS_TYPE_COLORS[slot.classType!];
-                  return (
-                    <div key={key} style={{ padding: "6px 12px", borderBottom: "1px solid #e5e7eb" }}>
-                      <div style={{ display: "flex", alignItems: "center", fontSize: 14 }}>
-                        <span style={{ width: 44, fontWeight: "bold", color: "#6b7280", flexShrink: 0 }}>{slot.time}</span>
-                        <span style={{ backgroundColor: colors.bg, color: colors.text, padding: "1px 6px", borderRadius: 3, fontSize: 11, marginRight: 6, flexShrink: 0, verticalAlign: "middle" }}>
-                          {slot.classType}
-                        </span>
-                        <span style={{ color: "#059669", fontSize: 11, flexShrink: 0 }}>子{slot.childCount}名</span>
-                      </div>
-                      <div style={{ marginTop: 2, paddingLeft: 44, fontSize: 14, color: "#1f2937", fontWeight: 500 }}>
-                        {assigned.length > 0 ? assigned.join("、") : "—"}
-                      </div>
-                    </div>
-                  );
-                })}
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <tbody>
+                    {activeSlots.map((slot, slotIdx) => {
+                      const key = getSlotKey(day.date, slot.time);
+                      const colors = CLASS_TYPE_COLORS[slot.classType!];
+                      const assignedCount = (assignments[key] || []).length;
+                      const required = getRequiredFacilitators(slot.childCount);
+                      const isShort = required > 0 && assignedCount < required;
+                      return (
+                        <tr key={key}>
+                          <td style={{ border: "1px solid #e5e7eb", padding: "6px 10px", verticalAlign: "top", width: 110 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                              <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", backgroundColor: colors.bg, border: `2px solid ${colors.border}`, flexShrink: 0 }} />
+                              <span style={{ fontWeight: "bold", color: "#4b5563", fontSize: 13 }}>{slot.time}</span>
+                            </div>
+                            {slot.childCount && (
+                              <div style={{ fontSize: 13, fontWeight: "bold", color: "#059669", marginTop: 2, paddingLeft: 15 }}>子{slot.childCount}名</div>
+                            )}
+                            {isShort && (
+                              <div style={{ fontSize: 11, fontWeight: "bold", color: "#dc2626", marginTop: 2, paddingLeft: 15 }}>⚠ あと{required - assignedCount}名</div>
+                            )}
+                          </td>
+                          {dayFacUids.map((uid) => {
+                            const cell = facCells[uid][slotIdx];
+                            if (!cell.show) return null;
+                            return (
+                              <td
+                                key={uid}
+                                rowSpan={cell.rowSpan}
+                                style={{
+                                  border: "1px solid #e5e7eb",
+                                  padding: "6px 10px",
+                                  textAlign: "center",
+                                  fontSize: 13,
+                                  fontWeight: 500,
+                                  verticalAlign: "middle",
+                                  whiteSpace: "nowrap",
+                                  backgroundColor: cell.assigned ? "#eff6ff" : undefined,
+                                  color: cell.assigned ? "#374151" : undefined,
+                                }}
+                              >
+                                {cell.assigned ? `${getDisplayName(uid)}さん` : ""}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             );
           })}
