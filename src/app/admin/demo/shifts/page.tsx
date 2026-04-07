@@ -936,16 +936,16 @@ export default function DemoShiftsPage() {
                               const isShort = required > 0 && assignedCount < required;
                               return (
                                 <tr key={key}>
-                                  <td className="border border-gray-200 px-3 py-2 align-top w-28">
-                                    <div className="flex items-center gap-1.5">
+                                  <td className="border border-gray-200 px-3 py-2 align-top w-28 text-right">
+                                    <div className="flex items-center justify-end gap-1.5">
                                       <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: colors.bg, border: `2px solid ${colors.border}` }} />
                                       <span className="font-bold text-gray-600 text-sm">{slot.time}</span>
                                     </div>
                                     {slot.childCount && (
-                                      <div className="text-sm font-bold text-green-600 mt-0.5 pl-4">子{slot.childCount}名</div>
+                                      <div className="text-sm font-bold text-green-600 mt-0.5">子{slot.childCount}名</div>
                                     )}
                                     {isShort && (
-                                      <div className="text-[11px] text-red-600 font-bold mt-0.5 pl-4">⚠ あと{required - assignedCount}名</div>
+                                      <div className="text-[11px] text-red-600 font-bold mt-0.5">⚠ あと{required - assignedCount}名</div>
                                     )}
                                   </td>
                                   {dayFacUids.map((uid) => {
@@ -955,11 +955,11 @@ export default function DemoShiftsPage() {
                                       <td
                                         key={uid}
                                         rowSpan={cell.rowSpan}
-                                        className={`border border-gray-200 px-2 py-2 text-center text-sm font-medium align-middle ${
+                                        className={`border border-gray-200 px-2 py-2 text-center text-sm max-sm:text-xs font-medium align-middle ${
                                           cell.assigned ? "bg-brand-50 text-gray-700" : ""
                                         }`}
                                       >
-                                        {cell.assigned ? <>{getName(uid)}<br /><span className="text-xs">さん</span></> : ""}
+                                        {cell.assigned ? <>{getName(uid)}<br /><span className="text-xs max-sm:text-[10px]">さん</span></> : ""}
                                       </td>
                                     );
                                   })}
