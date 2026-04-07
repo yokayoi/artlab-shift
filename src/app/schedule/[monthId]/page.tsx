@@ -435,8 +435,8 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                               const isShort = required > 0 && assignedCount < required;
                               return (
                                 <tr key={key}>
-                                  <td className="border border-gray-200 px-3 py-2 align-top w-28 text-right">
-                                    <div className="flex items-center justify-end gap-1.5">
+                                  <td className="border border-gray-200 px-2 py-2 align-top w-20 text-left">
+                                    <div className="flex items-center gap-1.5">
                                       <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: colors.bg, border: `2px solid ${colors.border}` }} />
                                       <span className="font-bold text-gray-600 text-sm">{slot.time}</span>
                                     </div>
