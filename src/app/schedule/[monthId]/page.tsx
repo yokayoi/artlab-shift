@@ -447,14 +447,23 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
           })()}
 
           {/* チェックイン・チェックアウト（シフト作成後） */}
-          {shift && (
+          {shift && (() => {
+            const myAssignedDays = schedule.days.filter((day) =>
+              day.slots.some((slot) => {
+                const key = getSlotKey(day.date, slot.time);
+                return slot.needsFacilitator && slot.classType && shift.assignments?.[key]?.includes(user?.uid || "");
+              })
+            );
+            if (myAssignedDays.length === 0) {
+              return !isAdmin ? (
+                <div className="mb-6 text-center py-4 text-sm text-gray-400 bg-white rounded-xl border border-gray-200">
+                  今月のシフトは割り当てられていません
+                </div>
+              ) : null;
+            }
+            return (
             <div className="mb-6 space-y-3">
-              {schedule.days.map((day) => {
-                const myDaySlots = day.slots.filter((slot) => {
-                  const key = getSlotKey(day.date, slot.time);
-                  return slot.needsFacilitator && slot.classType && shift.assignments?.[key]?.includes(user?.uid || "");
-                });
-                if (myDaySlots.length === 0) return null;
+              {myAssignedDays.map((day) => {
                 const dayKey = day.date;
                 const record = attendance?.records?.[dayKey];
                 const hasCheckIn = !!record?.checkIn;
@@ -600,7 +609,8 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                 );
               })}
             </div>
-          )}
+            );
+          })()}
 
           {/* Status Badge & Deadline */}
           <div className="text-center mb-6">
