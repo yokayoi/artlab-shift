@@ -94,6 +94,33 @@ const MOCK_AVAILABILITY: Record<string, Record<string, boolean>> = {
   },
 };
 
+function generateShiftText(assignments: Record<string, string[]>): string {
+  const lines: string[] = ["【シフト表】"];
+  lines.push("");
+
+  MOCK_DAYS.forEach((day) => {
+    const hasSlots = day.slots.some((s) => s.needsFacilitator && s.classType);
+    if (!hasSlots) return;
+
+    lines.push(`■ ${formatDateShort(day.date)}  ${day.dayLabel}`);
+
+    day.slots.forEach((slot) => {
+      if (!slot.needsFacilitator || !slot.classType) return;
+      const key = getSlotKey(day.date, slot.time);
+      const assigned = (assignments[key] || []).map((uid) =>
+        MOCK_FACILITATORS.find((f) => f.uid === uid)?.nickname || uid
+      );
+      const names = assigned.length > 0 ? assigned.join("、") : "（未定）";
+      lines.push(`  ${slot.time}  ${slot.classType}（子${slot.childCount || 0}名）`);
+      lines.push(`    → ${names}`);
+    });
+
+    lines.push("");
+  });
+
+  return lines.join("\n").trim();
+}
+
 export default function DemoShiftsPage() {
   const { user, isAdmin, loading } = useAuth();
   const router = useRouter();
@@ -102,6 +129,7 @@ export default function DemoShiftsPage() {
   const [simulation, setSimulation] = useState<Record<string, string[]> | null>(null);
   const [simulationNames, setSimulationNames] = useState<Record<string, string[]> | null>(null);
   const [completed, setCompleted] = useState<"saved" | "published" | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) router.push("/");
@@ -538,30 +566,61 @@ export default function DemoShiftsPage() {
         </button>
       </div>
 
-      {completed && (
-        <div className="mt-6 px-4 py-4 bg-green-50 border border-green-200 rounded-xl">
-          <p className="text-sm text-green-800 font-medium">
-            {completed === "published"
-              ? "シフトを公開しました（デモ）"
-              : "シフトを下書き保存しました（デモ）"}
-          </p>
-          <p className="text-xs text-green-600 mt-1">実際のデータには影響していません。</p>
-          <div className="mt-3 flex gap-2">
-            <button
-              onClick={() => { setCompleted(null); handleClearAll(); }}
-              className="px-4 py-2 text-sm font-medium text-green-700 bg-white border border-green-300 rounded-lg hover:bg-green-50 transition-colors"
-            >
-              最初からやり直す
-            </button>
-            <button
-              onClick={() => router.push("/admin")}
-              className="px-4 py-2 text-sm font-medium text-green-700 bg-white border border-green-300 rounded-lg hover:bg-green-50 transition-colors"
-            >
-              ダッシュボードへ戻る
-            </button>
+      {completed && (() => {
+        const shiftText = generateShiftText(assignments);
+        return (
+          <div className="mt-6 space-y-4">
+            <div className="px-4 py-4 bg-green-50 border border-green-200 rounded-xl">
+              <p className="text-sm text-green-800 font-medium">
+                {completed === "published"
+                  ? "シフトを公開しました（デモ）"
+                  : "シフトを下書き保存しました（デモ）"}
+              </p>
+              <p className="text-xs text-green-600 mt-1">実際のデータには影響していません。</p>
+            </div>
+
+            {completed === "published" && (
+              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
+                  <h3 className="text-sm font-bold text-gray-700">LINE送信用テキスト</h3>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(shiftText);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    }}
+                    className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                      copied
+                        ? "bg-green-500 text-white"
+                        : "bg-brand-600 text-white hover:bg-brand-700"
+                    }`}
+                  >
+                    {copied ? "コピーしました" : "コピー"}
+                  </button>
+                </div>
+                <pre className="px-4 py-3 text-sm text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">
+                  {shiftText}
+                </pre>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setCompleted(null); setCopied(false); handleClearAll(); }}
+                className="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                最初からやり直す
+              </button>
+              <button
+                onClick={() => router.push("/admin")}
+                className="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                ダッシュボードへ戻る
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
