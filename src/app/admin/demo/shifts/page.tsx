@@ -306,8 +306,10 @@ export default function DemoShiftsPage() {
     });
   });
 
+  const dateSlotCounts: Record<string, number> = {};
+  slotKeys.forEach((sk) => { dateSlotCounts[sk.date] = (dateSlotCounts[sk.date] || 0) + 1; });
   const dateRowSpans: Record<string, number> = {};
-  slotKeys.forEach((sk) => { dateRowSpans[sk.date] = (dateRowSpans[sk.date] || 0) + 1; });
+  Object.entries(dateSlotCounts).forEach(([date, count]) => { dateRowSpans[date] = count * 2; });
   const dateFirstRow = new Set<string>();
 
   // シミュレーション割当サマリー
@@ -389,8 +391,8 @@ export default function DemoShiftsPage() {
               const required = getRequiredFacilitators(sk.childCount);
               const isFirst = !dateFirstRow.has(sk.date);
               if (isFirst) dateFirstRow.add(sk.date);
-              return (
-                <tr key={sk.key} className="border-b border-gray-100">
+              return [
+                <tr key={sk.key} className="border-b border-gray-50">
                   {isFirst && (
                     <td
                       rowSpan={dateRowSpans[sk.date]}
@@ -399,12 +401,7 @@ export default function DemoShiftsPage() {
                       {sk.dateLabel}
                     </td>
                   )}
-                  <td className="px-2 py-2 text-gray-500 whitespace-nowrap text-xs">
-                    {sk.time}
-                    {MOCK_SLOT_NOTES[sk.key] && (
-                      <div className="text-[10px] text-orange-500 font-medium mt-0.5">{MOCK_SLOT_NOTES[sk.key]}</div>
-                    )}
-                  </td>
+                  <td className="px-2 py-2 text-gray-500 whitespace-nowrap text-xs">{sk.time}</td>
                   <td className="px-1 py-2 text-center text-xs text-green-700 font-semibold">
                     {sk.childCount || <span className="text-gray-300 font-normal">—</span>}
                     {required > 0 && (
@@ -452,8 +449,17 @@ export default function DemoShiftsPage() {
                       </td>
                     );
                   })}
-                </tr>
-              );
+                </tr>,
+                <tr key={`${sk.key}-note`} className="border-b border-gray-100">
+                  <td colSpan={4 + facilitatorIds.length} className="px-2 py-1">
+                    {MOCK_SLOT_NOTES[sk.key] ? (
+                      <span className="text-xs text-orange-500 font-medium">{MOCK_SLOT_NOTES[sk.key]}</span>
+                    ) : (
+                      <span className="text-xs text-gray-300">—</span>
+                    )}
+                  </td>
+                </tr>,
+              ];
             })}
           </tbody>
         </table>
