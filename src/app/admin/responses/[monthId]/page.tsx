@@ -21,6 +21,8 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
   const [saving, setSaving] = useState(false);
   const [childCounts, setChildCounts] = useState<Record<string, number>>({});
   const [childCountModified, setChildCountModified] = useState(false);
+  const [slotNotes, setSlotNotes] = useState<Record<string, string>>({});
+  const [slotNotesModified, setSlotNotesModified] = useState(false);
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) router.push("/");
@@ -47,6 +49,9 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
           })
         );
         setChildCounts(counts);
+        if (sched.slotNotes) {
+          setSlotNotes(sched.slotNotes);
+        }
       }
       const map: Record<string, UserProfile> = {};
       users.forEach((u) => { map[u.uid] = u; });
@@ -112,6 +117,19 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
     setChildCountModified(true);
   };
 
+  const updateSlotNote = (slotKey: string, note: string) => {
+    setSlotNotes((prev) => {
+      const updated = { ...prev };
+      if (note.trim()) {
+        updated[slotKey] = note;
+      } else {
+        delete updated[slotKey];
+      }
+      return updated;
+    });
+    setSlotNotesModified(true);
+  };
+
   const handleSave = async () => {
     setSaving(true);
     for (const avail of availabilities) {
@@ -119,7 +137,7 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
         await saveAvailability(monthId, avail.facilitatorId, avail.facilitatorName, avail.slots);
       }
     }
-    if (childCountModified && schedule) {
+    if ((childCountModified || slotNotesModified) && schedule) {
       const updatedDays = schedule.days.map((day) => ({
         date: day.date,
         dayLabel: day.dayLabel,
@@ -135,12 +153,13 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
         }),
       }));
       try {
-        await updateSchedule(monthId, { days: updatedDays });
+        await updateSchedule(monthId, { days: updatedDays, slotNotes });
       } catch (e) {
-        console.error("子ども人数の保存に失敗:", e);
+        console.error("保存に失敗:", e);
         alert("保存に失敗しました。もう一度お試しください。");
       }
       setChildCountModified(false);
+      setSlotNotesModified(false);
     }
     setModified(new Set());
     setSaving(false);
@@ -174,10 +193,14 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
     });
   });
 
-  // Calculate rowSpan for date grouping
-  const dateRowSpans: Record<string, number> = {};
+  // Calculate rowSpan for date grouping (x2 for notes rows)
+  const dateSlotCounts: Record<string, number> = {};
   slotKeys.forEach((sk) => {
-    dateRowSpans[sk.date] = (dateRowSpans[sk.date] || 0) + 1;
+    dateSlotCounts[sk.date] = (dateSlotCounts[sk.date] || 0) + 1;
+  });
+  const dateRowSpans: Record<string, number> = {};
+  Object.entries(dateSlotCounts).forEach(([date, count]) => {
+    dateRowSpans[date] = count * 2;
   });
   const dateFirstRow = new Set<string>();
 
@@ -226,8 +249,8 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
               const required = getRequiredFacilitators(childCounts[sk.key]);
               const isFirst = !dateFirstRow.has(sk.date);
               if (isFirst) dateFirstRow.add(sk.date);
-              return (
-                <tr key={sk.key} className="border-b border-gray-100">
+              return [
+                <tr key={sk.key} className="border-b border-gray-50">
                   {isFirst && (
                     <td
                       rowSpan={dateRowSpans[sk.date]}
@@ -285,14 +308,25 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
                       )}
                     </td>
                   ))}
-                </tr>
-              );
+                </tr>,
+                <tr key={`${sk.key}-note`} className="border-b border-gray-100">
+                  <td colSpan={4 + availabilities.length} className="px-2 py-1">
+                    <input
+                      type="text"
+                      placeholder="備考..."
+                      value={slotNotes[sk.key] || ""}
+                      onChange={(e) => updateSlotNote(sk.key, e.target.value)}
+                      className="w-full text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-brand-500 focus:bg-white placeholder-gray-300"
+                    />
+                  </td>
+                </tr>,
+              ];
             })}
           </tbody>
         </table>
       </div>
 
-      {(modified.size > 0 || childCountModified) && (
+      {(modified.size > 0 || childCountModified || slotNotesModified) && (
         <div className="mt-4 flex items-center gap-3">
           <button
             onClick={handleSave}
@@ -303,8 +337,10 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
           </button>
           <span className="text-xs text-gray-500">
             {modified.size > 0 && `投票${modified.size}名`}
-            {modified.size > 0 && childCountModified && " / "}
+            {(modified.size > 0 && (childCountModified || slotNotesModified)) && " / "}
             {childCountModified && "子ども人数"}
+            {childCountModified && slotNotesModified && " / "}
+            {slotNotesModified && "備考"}
           </span>
         </div>
       )}

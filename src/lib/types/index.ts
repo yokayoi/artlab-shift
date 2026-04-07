@@ -62,6 +62,7 @@ export interface MonthSchedule {
   createdBy: string;
   days: DaySchedule[];
   deadline?: string;
+  slotNotes?: Record<string, string>;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

@@ -128,6 +128,20 @@ export default function AdminPage() {
         </div>
       </div>
 
+      {/* シフト作成デモ */}
+      <div className="mb-4">
+        <Link
+          href="/admin/demo/shifts"
+          className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl p-4 hover:bg-amber-100 transition-colors"
+        >
+          <div>
+            <h2 className="font-medium text-amber-800">シフト作成デモ</h2>
+            <span className="text-xs text-amber-600">サンプルデータで操作を体験</span>
+          </div>
+          <span className="text-amber-600 text-sm">→</span>
+        </Link>
+      </div>
+
       <div className="space-y-3">
         {months.map((entry) => (
           <div key={entry.monthId} className="bg-white rounded-xl border border-gray-200 p-4">
