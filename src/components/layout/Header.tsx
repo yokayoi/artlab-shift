@@ -21,8 +21,8 @@ export default function Header() {
     <header className={`border-b sticky top-0 z-50 ${isOnAdminPage ? "bg-gray-50 border-gray-300" : "bg-white border-gray-200"}`}>
       <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href={isAdmin ? "/admin" : "/schedule"} className="font-bold text-gray-800">
-            アートデザインラボ <span className="text-sm font-normal text-gray-500">シフト</span>
+          <Link href={isAdmin ? "/admin" : "/schedule"}>
+            <img src="/logo.svg" alt="アートデザインラボ シフト" className="h-7" />
           </Link>
           {isAdmin && (
             <nav className="flex gap-1 ml-2">
