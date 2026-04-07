@@ -628,23 +628,25 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
             );
           })()}
 
-          {/* Status Badge & Deadline */}
-          <div className="text-center mb-6">
-            <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-              schedule.status === "collecting" ? "bg-brand-100 text-brand-700" : "bg-green-100 text-green-700"
-            }`}>
-              {STATUS_LABELS[schedule.status]}
-            </span>
-            {schedule.status === "collecting" && (
-              <div className="mt-2 text-sm">
-                {isDeadlinePassed(year, month, schedule?.deadline) ? (
-                  <span className="text-red-600 font-medium">締め切りを過ぎています</span>
-                ) : (
-                  <span className="text-gray-500">回答締め切り: <span className="font-medium">{formatDeadline(year, month, schedule?.deadline)}</span></span>
-                )}
-              </div>
-            )}
-          </div>
+          {/* Status Badge & Deadline (collecting時のみ) */}
+          {!isPublished && (
+            <div className="text-center mb-6">
+              <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+                schedule.status === "collecting" ? "bg-brand-100 text-brand-700" : "bg-green-100 text-green-700"
+              }`}>
+                {STATUS_LABELS[schedule.status]}
+              </span>
+              {schedule.status === "collecting" && (
+                <div className="mt-2 text-sm">
+                  {isDeadlinePassed(year, month, schedule?.deadline) ? (
+                    <span className="text-red-600 font-medium">締め切りを過ぎています</span>
+                  ) : (
+                    <span className="text-gray-500">回答締め切り: <span className="font-medium">{formatDeadline(year, month, schedule?.deadline)}</span></span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Schedule Grid (collecting時のみ表示) */}
           {!isPublished && <div className="space-y-4">
