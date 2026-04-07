@@ -359,7 +359,7 @@ export default function DemoShiftsPage() {
       text += shortageSlots.map((s) =>
         `${s.dateLabel} ${s.time} ${s.classType}（あと${s.shortage}名）`
       ).join("\n");
-      text += "\n入れる方いらっしゃいましたらご連絡ください。";
+      text += "\n入れる方いらっしゃいましたらぜひ！ご連絡ください。";
     }
     return text;
   };
@@ -711,40 +711,69 @@ export default function DemoShiftsPage() {
 
       {/* 画像生成用の非表示シフト表 */}
       <div style={{ position: "absolute", left: "-9999px", top: 0 }}>
-        <div ref={shiftTableRef} style={{ width: 420, padding: "20px 16px", backgroundColor: "#fff", fontFamily: "sans-serif" }}>
-          <div style={{ textAlign: "center", marginBottom: 20 }}>
-            <div style={{ fontSize: 18, fontWeight: "bold", color: "#1f2937" }}>4月 シフト表</div>
+        <div ref={shiftTableRef} style={{ width: 500, padding: "20px 16px", backgroundColor: "#fff", fontFamily: "sans-serif" }}>
+          <div style={{ textAlign: "center", marginBottom: 16 }}>
+            <div style={{ fontSize: 16, fontWeight: "bold", color: "#1f2937" }}>4月 シフト表</div>
           </div>
-          {MOCK_DAYS.map((day) => {
-            const activeSlots = day.slots.filter((s) => s.needsFacilitator && s.classType);
-            if (activeSlots.length === 0) return null;
+          {(() => {
+            const imgAssignedUids = Array.from(new Set(Object.values(assignments).flat()));
+            if (imgAssignedUids.length === 0) return <div style={{ textAlign: "center", color: "#9ca3af" }}>割当なし</div>;
+            const imgDateFirst = new Set<string>();
+            const imgDateCounts: Record<string, number> = {};
+            slotKeys.forEach((sk) => { imgDateCounts[sk.date] = (imgDateCounts[sk.date] || 0) + 1; });
             return (
-              <div key={day.date} style={{ marginBottom: 20 }}>
-                <div style={{ backgroundColor: "#f3f4f6", padding: "6px 12px", borderRadius: 6, marginBottom: 4, fontSize: 15, fontWeight: "bold", color: "#374151" }}>
-                  {formatDateShort(day.date)}
-                </div>
-                {activeSlots.map((slot) => {
-                  const key = getSlotKey(day.date, slot.time);
-                  const assigned = (assignments[key] || []).map((uid) => getName(uid) + "さん");
-                  const colors = CLASS_TYPE_COLORS[slot.classType!];
-                  return (
-                    <div key={key} style={{ padding: "6px 12px", borderBottom: "1px solid #e5e7eb" }}>
-                      <div style={{ display: "flex", alignItems: "center", fontSize: 14 }}>
-                        <span style={{ width: 44, fontWeight: "bold", color: "#6b7280", flexShrink: 0 }}>{slot.time}</span>
-                        <span style={{ backgroundColor: colors.bg, color: colors.text, padding: "1px 6px", borderRadius: 3, fontSize: 11, marginRight: 6, flexShrink: 0 }}>
-                          {slot.classType}
-                        </span>
-                        <span style={{ color: "#059669", fontSize: 11, flexShrink: 0 }}>子{slot.childCount}名</span>
-                      </div>
-                      <div style={{ marginTop: 2, paddingLeft: 44, fontSize: 14, color: "#1f2937", fontWeight: 500 }}>
-                        {assigned.length > 0 ? assigned.join("、") : "—"}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                <thead>
+                  <tr style={{ borderBottom: "2px solid #e5e7eb" }}>
+                    <th style={{ padding: "4px 8px", textAlign: "left", color: "#6b7280", fontWeight: 600 }}>日付</th>
+                    <th style={{ padding: "4px 6px", textAlign: "left", color: "#6b7280", fontWeight: 600 }}>時間</th>
+                    <th style={{ padding: "4px 6px", textAlign: "left", color: "#6b7280", fontWeight: 600 }}>クラス</th>
+                    <th style={{ padding: "4px 6px", textAlign: "center", color: "#6b7280", fontWeight: 600 }}>子ども</th>
+                    {imgAssignedUids.map((uid) => (
+                      <th key={uid} style={{ padding: "4px 6px", textAlign: "center", color: "#374151", fontWeight: 600 }}>
+                        {getName(uid)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {slotKeys.map((sk) => {
+                    const assigned = assignments[sk.key] || [];
+                    const isFirst = !imgDateFirst.has(sk.date);
+                    if (isFirst) imgDateFirst.add(sk.date);
+                    const colors = CLASS_TYPE_COLORS[sk.classType];
+                    return (
+                      <tr key={sk.key} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                        {isFirst && (
+                          <td rowSpan={imgDateCounts[sk.date]} style={{ padding: "4px 8px", fontWeight: 600, color: "#374151", verticalAlign: "middle", borderRight: "1px solid #e5e7eb", whiteSpace: "nowrap" as const }}>
+                            {sk.dateLabel}
+                          </td>
+                        )}
+                        <td style={{ padding: "4px 6px", color: "#6b7280", fontWeight: 600 }}>{sk.time}</td>
+                        <td style={{ padding: "4px 6px" }}>
+                          <span style={{ backgroundColor: colors.bg, color: colors.text, padding: "1px 6px", borderRadius: 3, fontSize: 11, verticalAlign: "middle" }}>
+                            {sk.classType}
+                          </span>
+                        </td>
+                        <td style={{ padding: "4px 6px", textAlign: "center", color: "#059669", fontSize: 11 }}>
+                          {sk.childCount ? `${sk.childCount}名` : "—"}
+                        </td>
+                        {imgAssignedUids.map((uid) => (
+                          <td key={uid} style={{ padding: "4px 6px", textAlign: "center" }}>
+                            {assigned.includes(uid) ? (
+                              <span style={{ color: "#2563EB", fontSize: 14 }}>○</span>
+                            ) : (
+                              <span style={{ color: "#d1d5db" }}>—</span>
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             );
-          })}
+          })()}
         </div>
       </div>
 
@@ -800,6 +829,73 @@ export default function DemoShiftsPage() {
                     <p className="text-sm text-gray-400 text-center py-4">画像を生成できませんでした</p>
                   )}
                   <p className="text-xs text-gray-400 mt-2 text-center">画像を長押しで保存、またはボタンからダウンロードできます</p>
+                </div>
+              </div>
+
+              {/* シフト表（HTML） */}
+              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+                  <h3 className="text-sm font-bold text-gray-700">シフト表</h3>
+                </div>
+                <div className="overflow-x-auto">
+                  {(() => {
+                    const htmlAssignedUids = Array.from(new Set(Object.values(assignments).flat()));
+                    if (htmlAssignedUids.length === 0) return <div className="p-4 text-center text-gray-400 text-sm">割当なし</div>;
+                    const htmlDateFirst = new Set<string>();
+                    const htmlDateCounts: Record<string, number> = {};
+                    slotKeys.forEach((sk) => { htmlDateCounts[sk.date] = (htmlDateCounts[sk.date] || 0) + 1; });
+                    return (
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b-2 border-gray-200">
+                            <th className="text-left px-3 py-2 text-gray-600 font-medium text-xs">日付</th>
+                            <th className="text-left px-2 py-2 text-gray-600 font-medium text-xs">時間</th>
+                            <th className="text-left px-2 py-2 text-gray-600 font-medium text-xs">クラス</th>
+                            <th className="text-center px-2 py-2 text-gray-600 font-medium text-xs">子ども</th>
+                            {htmlAssignedUids.map((uid) => (
+                              <th key={uid} className="text-center px-2 py-2 text-gray-700 font-medium text-xs">
+                                {getName(uid)}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {slotKeys.map((sk) => {
+                            const assigned = assignments[sk.key] || [];
+                            const isFirst = !htmlDateFirst.has(sk.date);
+                            if (isFirst) htmlDateFirst.add(sk.date);
+                            return (
+                              <tr key={sk.key} className="border-b border-gray-100">
+                                {isFirst && (
+                                  <td rowSpan={htmlDateCounts[sk.date]} className="px-3 py-2 font-medium text-gray-700 align-middle border-r border-gray-100 whitespace-nowrap text-xs">
+                                    {sk.dateLabel}
+                                  </td>
+                                )}
+                                <td className="px-2 py-2 text-gray-500 text-xs">{sk.time}</td>
+                                <td className="px-2 py-2">
+                                  <span className="inline-block px-1.5 py-0.5 rounded text-[11px]" style={{ backgroundColor: CLASS_TYPE_COLORS[sk.classType].bg, color: CLASS_TYPE_COLORS[sk.classType].text }}>
+                                    {sk.classType}
+                                  </span>
+                                </td>
+                                <td className="px-2 py-2 text-center text-xs text-green-700">
+                                  {sk.childCount ? `${sk.childCount}名` : "—"}
+                                </td>
+                                {htmlAssignedUids.map((uid) => (
+                                  <td key={uid} className="px-2 py-2 text-center">
+                                    {assigned.includes(uid) ? (
+                                      <span className="text-brand-600 font-bold">○</span>
+                                    ) : (
+                                      <span className="text-gray-300">—</span>
+                                    )}
+                                  </td>
+                                ))}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    );
+                  })()}
                 </div>
               </div>
 
