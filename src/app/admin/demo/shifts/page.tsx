@@ -711,69 +711,40 @@ export default function DemoShiftsPage() {
 
       {/* 画像生成用の非表示シフト表 */}
       <div style={{ position: "absolute", left: "-9999px", top: 0 }}>
-        <div ref={shiftTableRef} style={{ width: 500, padding: "20px 16px", backgroundColor: "#fff", fontFamily: "sans-serif" }}>
-          <div style={{ textAlign: "center", marginBottom: 16 }}>
-            <div style={{ fontSize: 16, fontWeight: "bold", color: "#1f2937" }}>4月 シフト表</div>
+        <div ref={shiftTableRef} style={{ width: 420, padding: "20px 16px", backgroundColor: "#fff", fontFamily: "sans-serif" }}>
+          <div style={{ textAlign: "center", marginBottom: 20 }}>
+            <div style={{ fontSize: 18, fontWeight: "bold", color: "#1f2937" }}>4月 シフト表</div>
           </div>
-          {(() => {
-            const imgAssignedUids = Array.from(new Set(Object.values(assignments).flat()));
-            if (imgAssignedUids.length === 0) return <div style={{ textAlign: "center", color: "#9ca3af" }}>割当なし</div>;
-            const imgDateFirst = new Set<string>();
-            const imgDateCounts: Record<string, number> = {};
-            slotKeys.forEach((sk) => { imgDateCounts[sk.date] = (imgDateCounts[sk.date] || 0) + 1; });
+          {MOCK_DAYS.map((day) => {
+            const activeSlots = day.slots.filter((s) => s.needsFacilitator && s.classType);
+            if (activeSlots.length === 0) return null;
             return (
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                <thead>
-                  <tr style={{ borderBottom: "2px solid #e5e7eb" }}>
-                    <th style={{ padding: "4px 8px", textAlign: "left", color: "#6b7280", fontWeight: 600 }}>日付</th>
-                    <th style={{ padding: "4px 6px", textAlign: "left", color: "#6b7280", fontWeight: 600 }}>時間</th>
-                    <th style={{ padding: "4px 6px", textAlign: "left", color: "#6b7280", fontWeight: 600 }}>クラス</th>
-                    <th style={{ padding: "4px 6px", textAlign: "center", color: "#6b7280", fontWeight: 600 }}>子ども</th>
-                    {imgAssignedUids.map((uid) => (
-                      <th key={uid} style={{ padding: "4px 6px", textAlign: "center", color: "#374151", fontWeight: 600 }}>
-                        {getName(uid)}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {slotKeys.map((sk) => {
-                    const assigned = assignments[sk.key] || [];
-                    const isFirst = !imgDateFirst.has(sk.date);
-                    if (isFirst) imgDateFirst.add(sk.date);
-                    const colors = CLASS_TYPE_COLORS[sk.classType];
-                    return (
-                      <tr key={sk.key} style={{ borderBottom: "1px solid #f3f4f6" }}>
-                        {isFirst && (
-                          <td rowSpan={imgDateCounts[sk.date]} style={{ padding: "4px 8px", fontWeight: 600, color: "#374151", verticalAlign: "middle", borderRight: "1px solid #e5e7eb", whiteSpace: "nowrap" as const }}>
-                            {sk.dateLabel}
-                          </td>
-                        )}
-                        <td style={{ padding: "4px 6px", color: "#6b7280", fontWeight: 600 }}>{sk.time}</td>
-                        <td style={{ padding: "4px 6px" }}>
-                          <span style={{ backgroundColor: colors.bg, color: colors.text, padding: "1px 6px", borderRadius: 3, fontSize: 11, verticalAlign: "middle" }}>
-                            {sk.classType}
-                          </span>
-                        </td>
-                        <td style={{ padding: "4px 6px", textAlign: "center", color: "#059669", fontSize: 11 }}>
-                          {sk.childCount ? `${sk.childCount}名` : "—"}
-                        </td>
-                        {imgAssignedUids.map((uid) => (
-                          <td key={uid} style={{ padding: "4px 6px", textAlign: "center" }}>
-                            {assigned.includes(uid) ? (
-                              <span style={{ color: "#2563EB", fontSize: 14 }}>○</span>
-                            ) : (
-                              <span style={{ color: "#d1d5db" }}>—</span>
-                            )}
-                          </td>
-                        ))}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              <div key={day.date} style={{ marginBottom: 20 }}>
+                <div style={{ backgroundColor: "#f3f4f6", padding: "6px 12px", borderRadius: 6, marginBottom: 4, fontSize: 15, fontWeight: "bold", color: "#374151" }}>
+                  {formatDateShort(day.date)}　{day.dayLabel}
+                </div>
+                {activeSlots.map((slot) => {
+                  const key = getSlotKey(day.date, slot.time);
+                  const assigned = (assignments[key] || []).map((uid) => getName(uid) + "さん");
+                  const colors = CLASS_TYPE_COLORS[slot.classType!];
+                  return (
+                    <div key={key} style={{ padding: "6px 12px", borderBottom: "1px solid #e5e7eb" }}>
+                      <div style={{ display: "flex", alignItems: "center", fontSize: 14 }}>
+                        <span style={{ width: 44, fontWeight: "bold", color: "#6b7280", flexShrink: 0 }}>{slot.time}</span>
+                        <span style={{ backgroundColor: colors.bg, color: colors.text, padding: "1px 6px", borderRadius: 3, fontSize: 11, marginRight: 6, flexShrink: 0, verticalAlign: "middle" }}>
+                          {slot.classType}
+                        </span>
+                        <span style={{ color: "#059669", fontSize: 11, flexShrink: 0 }}>子{slot.childCount}名</span>
+                      </div>
+                      <div style={{ marginTop: 2, paddingLeft: 44, fontSize: 14, color: "#1f2937", fontWeight: 500 }}>
+                        {assigned.length > 0 ? assigned.join("、") : "—"}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             );
-          })()}
+          })}
         </div>
       </div>
 
