@@ -760,65 +760,39 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
             <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
               <h3 className="text-sm font-bold text-gray-700">シフト表</h3>
             </div>
-            <div className="overflow-x-auto">
-              {(() => {
-                const htmlAssignedUids = Array.from(new Set(Object.values(assignments).flat()));
-                if (htmlAssignedUids.length === 0) return <div className="p-4 text-center text-gray-400 text-sm">割当なし</div>;
-                const htmlDateFirst = new Set<string>();
-                const htmlDateCounts: Record<string, number> = {};
-                slotKeys.forEach((sk) => { htmlDateCounts[sk.date] = (htmlDateCounts[sk.date] || 0) + 1; });
+            <div className="p-4 space-y-4">
+              {schedule.days.map((day) => {
+                const activeSlots = day.slots.filter((s) => s.needsFacilitator && s.classType);
+                if (activeSlots.length === 0) return null;
                 return (
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b-2 border-gray-200">
-                        <th className="text-left px-3 py-2 text-gray-600 font-medium text-xs">日付</th>
-                        <th className="text-left px-2 py-2 text-gray-600 font-medium text-xs">時間</th>
-                        <th className="text-left px-2 py-2 text-gray-600 font-medium text-xs">クラス</th>
-                        <th className="text-center px-2 py-2 text-gray-600 font-medium text-xs">子ども</th>
-                        {htmlAssignedUids.map((uid) => (
-                          <th key={uid} className="text-center px-2 py-2 text-gray-700 font-medium text-xs">
-                            {getDisplayName(uid)}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {slotKeys.map((sk) => {
-                        const assigned = assignments[sk.key] || [];
-                        const isFirst = !htmlDateFirst.has(sk.date);
-                        if (isFirst) htmlDateFirst.add(sk.date);
-                        return (
-                          <tr key={sk.key} className="border-b border-gray-100">
-                            {isFirst && (
-                              <td rowSpan={htmlDateCounts[sk.date]} className="px-3 py-2 font-medium text-gray-700 align-middle border-r border-gray-100 whitespace-nowrap text-xs">
-                                {sk.dateLabel}
-                              </td>
+                  <div key={day.date}>
+                    <div className="bg-gray-100 px-3 py-1.5 rounded-md mb-1">
+                      <span className="text-sm font-bold text-gray-700">{formatDateShort(day.date)}　{day.dayLabel}</span>
+                    </div>
+                    {activeSlots.map((slot) => {
+                      const key = getSlotKey(day.date, slot.time);
+                      const assigned = (assignments[key] || []).map((uid) => getDisplayName(uid) + "さん");
+                      const colors = CLASS_TYPE_COLORS[slot.classType!];
+                      return (
+                        <div key={key} className="px-3 py-1.5 border-b border-gray-100">
+                          <div className="flex items-center gap-1.5 text-sm">
+                            <span className="font-bold text-gray-500 w-11 shrink-0">{slot.time}</span>
+                            <span className="inline-block px-1.5 py-0.5 rounded text-[11px] shrink-0" style={{ backgroundColor: colors.bg, color: colors.text }}>
+                              {slot.classType}
+                            </span>
+                            {slot.childCount && (
+                              <span className="text-[11px] text-green-600 shrink-0">子{slot.childCount}名</span>
                             )}
-                            <td className="px-2 py-2 text-gray-500 text-xs">{sk.time}</td>
-                            <td className="px-2 py-2">
-                              <span className="inline-block px-1.5 py-0.5 rounded text-[11px]" style={{ backgroundColor: CLASS_TYPE_COLORS[sk.classType].bg, color: CLASS_TYPE_COLORS[sk.classType].text }}>
-                                {sk.classType}
-                              </span>
-                            </td>
-                            <td className="px-2 py-2 text-center text-xs text-green-700">
-                              {sk.childCount ? `${sk.childCount}名` : "—"}
-                            </td>
-                            {htmlAssignedUids.map((uid) => (
-                              <td key={uid} className="px-2 py-2 text-center">
-                                {assigned.includes(uid) ? (
-                                  <span className="text-brand-600 font-bold">○</span>
-                                ) : (
-                                  <span className="text-gray-300">—</span>
-                                )}
-                              </td>
-                            ))}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                          </div>
+                          <div className="mt-0.5 pl-11 text-sm font-medium text-gray-700">
+                            {assigned.length > 0 ? assigned.join("、") : "—"}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 );
-              })()}
+              })}
             </div>
           </div>
 
