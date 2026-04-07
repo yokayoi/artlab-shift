@@ -249,6 +249,12 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
         >
           年間カレンダー
         </button>
+        <button
+          onClick={() => router.push("/schedule/help")}
+          className="text-xs text-gray-600 bg-white border border-gray-300 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors"
+        >
+          使い方
+        </button>
       </div>
 
       {/* Demo Guide */}
@@ -394,13 +400,16 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                     return (
                       <div key={day.date}>
                         <div className="bg-gray-100 px-3 py-1.5 rounded-md mb-1">
-                          <span className="text-sm font-bold text-gray-700">{formatDateShort(day.date)}　{day.dayLabel}</span>
+                          <span className="text-sm font-bold text-gray-700">{formatDateShort(day.date)}</span>
                         </div>
                         <table className="w-full border-collapse">
                           <tbody>
                             {activeSlots.map((slot, slotIdx) => {
                               const key = getSlotKey(day.date, slot.time);
                               const colors = CLASS_TYPE_COLORS[slot.classType!];
+                              const assignedCount = (shift.assignments?.[key] || []).length;
+                              const required = getRequiredFacilitators(slot.childCount);
+                              const isShort = required > 0 && assignedCount < required;
                               return (
                                 <tr key={key}>
                                   <td className="border border-gray-200 px-3 py-2 align-top w-28">
@@ -410,6 +419,9 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                                     </div>
                                     {slot.childCount && (
                                       <div className="text-sm font-bold text-green-600 mt-0.5 pl-4">子{slot.childCount}名</div>
+                                    )}
+                                    {isShort && (
+                                      <div className="text-[11px] text-red-600 font-bold mt-0.5 pl-4">⚠ あと{required - assignedCount}名</div>
                                     )}
                                   </td>
                                   {dayFacUids.map((uid) => {
@@ -439,8 +451,8 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                     );
                   })}
                 </div>
-                <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
-                  <p className="text-xs text-gray-500">変更の際はLINEにてご連絡ください</p>
+                <div className="px-4 py-4 bg-amber-50 border-t border-amber-200">
+                  <p className="text-sm font-bold text-amber-800">変更の際はLINEにてご連絡ください</p>
                 </div>
               </div>
             );
@@ -1021,45 +1033,6 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
               </span>
               <span className="text-xs font-medium text-gray-700 leading-tight">{doc.title}</span>
             </a>
-          ))}
-        </div>
-      </div>
-
-      {/* アプリの使い方 FAQ */}
-      <div className="mt-8 bg-white rounded-xl border border-gray-200 p-4">
-        <h2 className="font-medium text-gray-800 mb-3">アプリの使い方</h2>
-        <div className="space-y-3">
-          {[
-            {
-              q: "シフト希望はどうやって出しますか？",
-              a: "「回答受付中」の月のページで、参加可能な時間帯の丸ボタンをタップし、「回答を送信する」を押してください。締め切り前なら何度でも変更できます。",
-            },
-            {
-              q: "チェックイン・チェックアウトとは？",
-              a: "シフトが確定した後、出勤時にINボタン、退勤時にOUTボタンを押してください。実働時間が自動で記録されます。時間は後から修正もできます。",
-            },
-            {
-              q: "自分のシフトはどこで確認できますか？",
-              a: "シフトが確定すると、ページ上部にシフト表が表示されます。自分の名前がハイライトされます。",
-            },
-            {
-              q: "給与はどこで確認できますか？",
-              a: "ページ下部の「今月の給与」セクションで、コマ数・実働時間・交通費を含めた合計金額を確認できます。",
-            },
-            {
-              q: "シフトの変更をしたい場合は？",
-              a: "シフト確定後の変更はLINEにて管理者にご連絡ください。",
-            },
-          ].map((item) => (
-            <details key={item.q} className="group">
-              <summary className="cursor-pointer text-sm font-medium text-gray-700 hover:text-brand-600 transition-colors list-none flex items-start gap-2">
-                <span className="text-brand-500 shrink-0 mt-0.5">Q.</span>
-                <span>{item.q}</span>
-              </summary>
-              <div className="mt-1.5 ml-5 text-sm text-gray-600 leading-relaxed">
-                {item.a}
-              </div>
-            </details>
           ))}
         </div>
       </div>
