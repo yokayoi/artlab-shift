@@ -434,7 +434,7 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
                           isAssigned ? (
                             <span className="text-brand-600 text-lg leading-none">●</span>
                           ) : (
-                            <span className="text-gray-400 text-lg leading-none">●</span>
+                            <span className="text-gray-200 text-lg leading-none">●</span>
                           )
                         ) : (
                           <span className="text-gray-200">—</span>
