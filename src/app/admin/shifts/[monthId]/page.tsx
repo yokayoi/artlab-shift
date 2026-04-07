@@ -793,7 +793,7 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
                             <tr key={key}>
                               <td className="border border-gray-200 px-3 py-2 align-top w-28">
                                 <div className="flex items-center gap-1.5">
-                                  <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: colors.text }} />
+                                  <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: colors.bg, border: `2px solid ${colors.border}` }} />
                                   <span className="font-bold text-gray-600 text-sm">{slot.time}</span>
                                 </div>
                                 {slot.childCount && (

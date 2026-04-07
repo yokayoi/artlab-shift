@@ -334,6 +334,274 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
         </div>
       ) : (
         <>
+          {/* 公開済みシフト表（トップ表示） */}
+          {isPublished && shift && (() => {
+            return (
+              <div className="mb-6 max-w-[640px] mx-auto bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+                  <h3 className="text-sm font-bold text-gray-700">{month}月 シフト表</h3>
+                </div>
+                <div className="px-4 pt-3 pb-1 flex gap-4 text-xs text-gray-500">
+                  {["カリキュラム", "オーダーメイド"].map((type) => {
+                    const c = CLASS_TYPE_COLORS[type];
+                    return (
+                      <span key={type} className="flex items-center gap-1">
+                        <span className="inline-block px-1.5 py-0.5 rounded text-[11px] font-medium" style={{ backgroundColor: c.bg, color: c.text }}>{type}</span>
+                      </span>
+                    );
+                  })}
+                </div>
+                <div className="p-4 pt-2 space-y-4">
+                  {schedule.days.map((day) => {
+                    const activeSlots = day.slots.filter((s) => s.needsFacilitator && s.classType);
+                    if (activeSlots.length === 0) return null;
+                    const dayFacUids: string[] = [];
+                    activeSlots.forEach((slot) => {
+                      (shift.assignments?.[getSlotKey(day.date, slot.time)] || []).forEach((uid) => {
+                        if (!dayFacUids.includes(uid)) dayFacUids.push(uid);
+                      });
+                    });
+                    const facCells: Record<string, { show: boolean; rowSpan: number; assigned: boolean }[]> = {};
+                    dayFacUids.forEach((uid) => {
+                      const cells: { show: boolean; rowSpan: number; assigned: boolean }[] = [];
+                      let i = 0;
+                      while (i < activeSlots.length) {
+                        const k = getSlotKey(day.date, activeSlots[i].time);
+                        if ((shift.assignments?.[k] || []).includes(uid)) {
+                          let span = 1;
+                          while (i + span < activeSlots.length) {
+                            const nk = getSlotKey(day.date, activeSlots[i + span].time);
+                            if ((shift.assignments?.[nk] || []).includes(uid)) span++;
+                            else break;
+                          }
+                          cells.push({ show: true, rowSpan: span, assigned: true });
+                          for (let j = 1; j < span; j++) cells.push({ show: false, rowSpan: 0, assigned: true });
+                          i += span;
+                        } else {
+                          cells.push({ show: true, rowSpan: 1, assigned: false });
+                          i++;
+                        }
+                      }
+                      facCells[uid] = cells;
+                    });
+                    const facNameMap: Record<string, string> = {};
+                    activeSlots.forEach((slot) => {
+                      const k = getSlotKey(day.date, slot.time);
+                      const uids = shift.assignments?.[k] || [];
+                      const names = shift.assignmentNames?.[k] || [];
+                      uids.forEach((uid, i) => { if (!facNameMap[uid]) facNameMap[uid] = names[i] || uid; });
+                    });
+                    return (
+                      <div key={day.date}>
+                        <div className="bg-gray-100 px-3 py-1.5 rounded-md mb-1">
+                          <span className="text-sm font-bold text-gray-700">{formatDateShort(day.date)}　{day.dayLabel}</span>
+                        </div>
+                        <table className="w-full border-collapse">
+                          <tbody>
+                            {activeSlots.map((slot, slotIdx) => {
+                              const key = getSlotKey(day.date, slot.time);
+                              const colors = CLASS_TYPE_COLORS[slot.classType!];
+                              return (
+                                <tr key={key}>
+                                  <td className="border border-gray-200 px-3 py-2 align-top w-28">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: colors.bg, border: `2px solid ${colors.border}` }} />
+                                      <span className="font-bold text-gray-600 text-sm">{slot.time}</span>
+                                    </div>
+                                    {slot.childCount && (
+                                      <div className="text-sm font-bold text-green-600 mt-0.5 pl-4">子{slot.childCount}名</div>
+                                    )}
+                                  </td>
+                                  {dayFacUids.map((uid) => {
+                                    const cell = facCells[uid][slotIdx];
+                                    if (!cell.show) return null;
+                                    const isMeUid = uid === user?.uid;
+                                    return (
+                                      <td
+                                        key={uid}
+                                        rowSpan={cell.rowSpan}
+                                        className={`border border-gray-200 px-3 py-2 text-center text-sm font-medium align-middle whitespace-nowrap ${
+                                          cell.assigned
+                                            ? isMeUid ? "bg-brand-100 text-brand-700" : "bg-brand-50 text-gray-700"
+                                            : ""
+                                        }`}
+                                      >
+                                        {cell.assigned ? `${facNameMap[uid]}さん` : ""}
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
+                  <p className="text-xs text-gray-500">変更の際はLINEにてご連絡ください</p>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* チェックイン・チェックアウト（シフト確定後） */}
+          {isPublished && shift && (
+            <div className="mb-6 space-y-3">
+              {schedule.days.map((day) => {
+                const myDaySlots = day.slots.filter((slot) => {
+                  const key = getSlotKey(day.date, slot.time);
+                  return slot.needsFacilitator && slot.classType && shift.assignments?.[key]?.includes(user?.uid || "");
+                });
+                if (myDaySlots.length === 0) return null;
+                const dayKey = day.date;
+                const record = attendance?.records?.[dayKey];
+                const hasCheckIn = !!record?.checkIn;
+                const hasCheckOut = !!record?.checkOut;
+                const isProcessing = checkingIn === dayKey;
+                let durationMin = 0;
+                if (record?.checkIn && record?.checkOut) {
+                  durationMin = Math.round((record.checkOut.toDate().getTime() - record.checkIn.toDate().getTime()) / 60000);
+                }
+                const durationHours = Math.floor(durationMin / 60);
+                const durationRemainder = durationMin % 60;
+                return (
+                  <div key={dayKey} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                      <span className="font-medium text-gray-700">{formatDateShort(day.date)}</span>
+                      <span className="text-sm text-gray-500 ml-2">{day.dayLabel}</span>
+                    </div>
+                    <div className="p-4">
+                      {!hasCheckIn ? (
+                        <div className="flex flex-col items-center py-2">
+                          <div className="relative">
+                            <button
+                              onClick={() => handleDayCheckIn(dayKey)}
+                              disabled={isProcessing}
+                              className="w-28 h-28 rounded-full bg-green-500 hover:bg-green-600 active:scale-95 text-white font-bold text-base disabled:bg-gray-300 flex flex-col items-center justify-center transition-all"
+                            >
+                              {isProcessing ? (
+                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white" />
+                              ) : (
+                                <>
+                                  <span className="text-2xl mb-0.5">IN</span>
+                                  <span className="text-xs opacity-90">チェックイン</span>
+                                </>
+                              )}
+                            </button>
+                            {sparkleKey === dayKey && (
+                              <div className="sparkle-container">
+                                {[...Array(12)].map((_, i) => (
+                                  <span key={i} className="sparkle" style={{ '--i': i } as React.CSSProperties} />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ) : !hasCheckOut ? (
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-center gap-3">
+                            <span className="text-sm text-gray-500 font-medium">IN</span>
+                            <input
+                              type="time"
+                              value={timestampToTimeString(record!.checkIn!)}
+                              onChange={(e) => {
+                                const [h, m] = e.target.value.split(":");
+                                const d = record!.checkIn!.toDate();
+                                d.setHours(parseInt(h), parseInt(m));
+                                handleEditTime(dayKey, "checkIn", timestampToDatetimeLocal({ toDate: () => d } as any));
+                              }}
+                              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                            />
+                          </div>
+                          <div className="flex flex-col items-center py-2">
+                            <div className="relative">
+                              <button
+                                onClick={() => handleDayCheckOut(dayKey)}
+                                disabled={isProcessing}
+                                className="w-28 h-28 rounded-full bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-bold text-base disabled:bg-gray-300 flex flex-col items-center justify-center transition-all"
+                              >
+                                {isProcessing ? (
+                                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white" />
+                                ) : (
+                                  <>
+                                    <span className="text-2xl mb-0.5">OUT</span>
+                                    <span className="text-xs opacity-90">チェックアウト</span>
+                                  </>
+                                )}
+                              </button>
+                              {sparkleKey === `out_${dayKey}` && (
+                                <div className="sparkle-container">
+                                  {[...Array(12)].map((_, i) => (
+                                    <span key={i} className="sparkle" style={{ '--i': i } as React.CSSProperties} />
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-center gap-4">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-green-600 font-medium">IN</span>
+                              <input
+                                type="time"
+                                value={timestampToTimeString(record!.checkIn!)}
+                                onChange={(e) => {
+                                  const [h, m] = e.target.value.split(":");
+                                  const d = record!.checkIn!.toDate();
+                                  d.setHours(parseInt(h), parseInt(m));
+                                  handleEditTime(dayKey, "checkIn", timestampToDatetimeLocal({ toDate: () => d } as any));
+                                }}
+                                className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                              />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-orange-600 font-medium">OUT</span>
+                              <input
+                                type="time"
+                                value={timestampToTimeString(record!.checkOut!)}
+                                onChange={(e) => {
+                                  const [h, m] = e.target.value.split(":");
+                                  const d = record!.checkOut!.toDate();
+                                  d.setHours(parseInt(h), parseInt(m));
+                                  handleEditTime(dayKey, "checkOut", timestampToDatetimeLocal({ toDate: () => d } as any));
+                                }}
+                                className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                              />
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <span className="text-lg font-bold text-brand-700">
+                              実働 {durationHours > 0 ? `${durationHours}時間` : ""}{durationRemainder}分
+                            </span>
+                          </div>
+                          {isDemo && (
+                            <div className="text-center">
+                              <button
+                                onClick={() => handleResetDay(dayKey)}
+                                className="text-xs text-gray-400 hover:text-gray-600 underline transition-colors"
+                              >
+                                リセットしてもう一度体験
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {record?.editedBy && (
+                        <div className="text-center mt-2">
+                          <span className="text-[10px] text-gray-400">(管理者編集あり)</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           {/* Status Badge & Deadline */}
           <div className="text-center mb-6">
             <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
@@ -667,118 +935,6 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
             })}
           </div>
 
-          {/* 公開済みシフト表 */}
-          {isPublished && shift && (() => {
-            return (
-              <div className="mt-6 max-w-[640px] mx-auto bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-                  <h3 className="text-sm font-bold text-gray-700">{month}月 シフト表</h3>
-                </div>
-                <div className="px-4 pt-3 pb-1 flex gap-4 text-xs text-gray-500">
-                  {["カリキュラム", "オーダーメイド"].map((type) => {
-                    const c = CLASS_TYPE_COLORS[type];
-                    return (
-                      <span key={type} className="flex items-center gap-1">
-                        <span className="inline-block px-1.5 py-0.5 rounded text-[11px] font-medium" style={{ backgroundColor: c.bg, color: c.text }}>{type}</span>
-                      </span>
-                    );
-                  })}
-                </div>
-                <div className="p-4 pt-2 space-y-4">
-                  {schedule.days.map((day) => {
-                    const activeSlots = day.slots.filter((s) => s.needsFacilitator && s.classType);
-                    if (activeSlots.length === 0) return null;
-                    const dayFacUids: string[] = [];
-                    activeSlots.forEach((slot) => {
-                      (shift.assignments?.[getSlotKey(day.date, slot.time)] || []).forEach((uid) => {
-                        if (!dayFacUids.includes(uid)) dayFacUids.push(uid);
-                      });
-                    });
-                    const facCells: Record<string, { show: boolean; rowSpan: number; assigned: boolean }[]> = {};
-                    dayFacUids.forEach((uid) => {
-                      const cells: { show: boolean; rowSpan: number; assigned: boolean }[] = [];
-                      let i = 0;
-                      while (i < activeSlots.length) {
-                        const k = getSlotKey(day.date, activeSlots[i].time);
-                        if ((shift.assignments?.[k] || []).includes(uid)) {
-                          let span = 1;
-                          while (i + span < activeSlots.length) {
-                            const nk = getSlotKey(day.date, activeSlots[i + span].time);
-                            if ((shift.assignments?.[nk] || []).includes(uid)) span++;
-                            else break;
-                          }
-                          cells.push({ show: true, rowSpan: span, assigned: true });
-                          for (let j = 1; j < span; j++) cells.push({ show: false, rowSpan: 0, assigned: true });
-                          i += span;
-                        } else {
-                          cells.push({ show: true, rowSpan: 1, assigned: false });
-                          i++;
-                        }
-                      }
-                      facCells[uid] = cells;
-                    });
-                    const facNameMap: Record<string, string> = {};
-                    activeSlots.forEach((slot) => {
-                      const k = getSlotKey(day.date, slot.time);
-                      const uids = shift.assignments?.[k] || [];
-                      const names = shift.assignmentNames?.[k] || [];
-                      uids.forEach((uid, i) => { if (!facNameMap[uid]) facNameMap[uid] = names[i] || uid; });
-                    });
-                    return (
-                      <div key={day.date}>
-                        <div className="bg-gray-100 px-3 py-1.5 rounded-md mb-1">
-                          <span className="text-sm font-bold text-gray-700">{formatDateShort(day.date)}　{day.dayLabel}</span>
-                        </div>
-                        <table className="w-full border-collapse">
-                          <tbody>
-                            {activeSlots.map((slot, slotIdx) => {
-                              const key = getSlotKey(day.date, slot.time);
-                              const colors = CLASS_TYPE_COLORS[slot.classType!];
-                              return (
-                                <tr key={key}>
-                                  <td className="border border-gray-200 px-3 py-2 align-top w-28">
-                                    <div className="flex items-center gap-1.5">
-                                      <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: colors.text }} />
-                                      <span className="font-bold text-gray-600 text-sm">{slot.time}</span>
-                                    </div>
-                                    {slot.childCount && (
-                                      <div className="text-sm font-bold text-green-600 mt-0.5 pl-4">子{slot.childCount}名</div>
-                                    )}
-                                  </td>
-                                  {dayFacUids.map((uid) => {
-                                    const cell = facCells[uid][slotIdx];
-                                    if (!cell.show) return null;
-                                    const isMeUid = uid === user?.uid;
-                                    return (
-                                      <td
-                                        key={uid}
-                                        rowSpan={cell.rowSpan}
-                                        className={`border border-gray-200 px-3 py-2 text-center text-sm font-medium align-middle whitespace-nowrap ${
-                                          cell.assigned
-                                            ? isMeUid ? "bg-brand-100 text-brand-700" : "bg-brand-50 text-gray-700"
-                                            : ""
-                                        }`}
-                                      >
-                                        {cell.assigned ? `${facNameMap[uid]}さん` : ""}
-                                      </td>
-                                    );
-                                  })}
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
-                  <p className="text-xs text-gray-500">変更の際はLINEにてご連絡ください</p>
-                </div>
-              </div>
-            );
-          })()}
-
           {/* Submit Button */}
           {schedule.status === "collecting" && (
             <div className="mt-6 px-4">
@@ -837,6 +993,45 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
               </span>
               <span className="text-xs font-medium text-gray-700 leading-tight">{doc.title}</span>
             </a>
+          ))}
+        </div>
+      </div>
+
+      {/* アプリの使い方 FAQ */}
+      <div className="mt-8 bg-white rounded-xl border border-gray-200 p-4">
+        <h2 className="font-medium text-gray-800 mb-3">アプリの使い方</h2>
+        <div className="space-y-3">
+          {[
+            {
+              q: "シフト希望はどうやって出しますか？",
+              a: "「回答受付中」の月のページで、参加可能な時間帯の丸ボタンをタップし、「回答を送信する」を押してください。締め切り前なら何度でも変更できます。",
+            },
+            {
+              q: "チェックイン・チェックアウトとは？",
+              a: "シフトが確定した後、出勤時にINボタン、退勤時にOUTボタンを押してください。実働時間が自動で記録されます。時間は後から修正もできます。",
+            },
+            {
+              q: "自分のシフトはどこで確認できますか？",
+              a: "シフトが確定すると、ページ上部にシフト表が表示されます。自分の名前がハイライトされます。",
+            },
+            {
+              q: "給与はどこで確認できますか？",
+              a: "ページ下部の「今月の給与」セクションで、コマ数・実働時間・交通費を含めた合計金額を確認できます。",
+            },
+            {
+              q: "シフトの変更をしたい場合は？",
+              a: "シフト確定後の変更はLINEにて管理者にご連絡ください。",
+            },
+          ].map((item) => (
+            <details key={item.q} className="group">
+              <summary className="cursor-pointer text-sm font-medium text-gray-700 hover:text-brand-600 transition-colors list-none flex items-start gap-2">
+                <span className="text-brand-500 shrink-0 mt-0.5">Q.</span>
+                <span>{item.q}</span>
+              </summary>
+              <div className="mt-1.5 ml-5 text-sm text-gray-600 leading-relaxed">
+                {item.a}
+              </div>
+            </details>
           ))}
         </div>
       </div>
