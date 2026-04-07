@@ -7,6 +7,7 @@ import { getSlotKey, formatDateShort } from "@/lib/utils/dateCalc";
 import { getRequiredFacilitators, CLASS_TYPE_COLORS } from "@/lib/utils/constants";
 import { DaySchedule } from "@/lib/types";
 import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
 
 // ===== モックデータ =====
 
@@ -285,6 +286,19 @@ export default function DemoShiftsPage() {
     link.download = "シフト表_4月.png";
     link.href = shiftImageUrl;
     link.click();
+  };
+
+  const downloadPdf = async () => {
+    if (!shiftTableRef.current) return;
+    const canvas = await html2canvas(shiftTableRef.current, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
+    const imgData = canvas.toDataURL("image/png");
+    const imgW = canvas.width;
+    const imgH = canvas.height;
+    const pdfW = imgW * 0.264583;
+    const pdfH = imgH * 0.264583;
+    const pdf = new jsPDF({ orientation: pdfW > pdfH ? "landscape" : "portrait", unit: "mm", format: [pdfW, pdfH] });
+    pdf.addImage(imgData, "PNG", 0, 0, pdfW, pdfH);
+    pdf.save("シフト表_4月.pdf");
   };
 
   if (loading) {
@@ -843,12 +857,20 @@ export default function DemoShiftsPage() {
                 {generatingImage ? (
                   <span className="text-xs text-gray-500">画像を生成中...</span>
                 ) : shiftImageUrl ? (
-                  <button
-                    onClick={downloadImage}
-                    className="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700"
-                  >
-                    シフト表画像を保存
-                  </button>
+                  <>
+                    <button
+                      onClick={downloadImage}
+                      className="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700"
+                    >
+                      画像を保存
+                    </button>
+                    <button
+                      onClick={downloadPdf}
+                      className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
+                    >
+                      PDFを保存
+                    </button>
+                  </>
                 ) : null}
               </div>
 
