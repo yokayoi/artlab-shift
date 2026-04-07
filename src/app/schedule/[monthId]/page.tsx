@@ -646,8 +646,8 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
             )}
           </div>
 
-          {/* Schedule Grid with integrated Check-in/out */}
-          <div className="space-y-4">
+          {/* Schedule Grid (collecting時のみ表示) */}
+          {!isPublished && <div className="space-y-4">
             {schedule.days.map((day) => {
               // Check if user has assigned slots on this day
               const myDaySlots = isPublished && shift
@@ -959,7 +959,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                 </div>
               );
             })}
-          </div>
+          </div>}
 
           {/* Submit Button */}
           {schedule.status === "collecting" && (
