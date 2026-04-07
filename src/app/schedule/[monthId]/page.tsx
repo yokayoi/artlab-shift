@@ -343,7 +343,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
           </button>
         )}
         <h1 className="text-xl font-bold text-gray-800">
-          {isDemo ? "デモ" : `${year}年${month}月`}
+          {isDemo ? "デモ" : `${year}年${month}月${isPublished ? "シフト" : ""}`}
         </h1>
         <button
           onClick={() => router.push(`/schedule/${nextMonth}`)}
