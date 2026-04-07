@@ -714,45 +714,18 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
             <p className="text-sm text-green-800 font-medium">シフトを公開しました</p>
           </div>
 
-          {/* シフト表画像 */}
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
-              <h3 className="text-sm font-bold text-gray-700">シフト表（画像）</h3>
-              <div className="flex gap-2">
-                <button
-                  onClick={generateImage}
-                  disabled={generatingImage}
-                  className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  再生成
-                </button>
-                {shiftImageUrl && (
-                  <button
-                    onClick={downloadImage}
-                    className="px-3 py-1.5 text-xs font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700"
-                  >
-                    画像を保存
-                  </button>
-                )}
-              </div>
-            </div>
-            <div className="p-4">
-              {generatingImage ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-600" />
-                  <span className="ml-2 text-sm text-gray-500">画像を生成中...</span>
-                </div>
-              ) : shiftImageUrl ? (
-                <img
-                  src={shiftImageUrl}
-                  alt="シフト表"
-                  className="w-full max-w-[500px] mx-auto rounded-lg border border-gray-200"
-                />
-              ) : (
-                <p className="text-sm text-gray-400 text-center py-4">画像を生成できませんでした</p>
-              )}
-              <p className="text-xs text-gray-400 mt-2 text-center">画像を長押しで保存、またはボタンからダウンロードできます</p>
-            </div>
+          {/* シフト表画像保存 */}
+          <div className="flex gap-2">
+            {generatingImage ? (
+              <span className="text-xs text-gray-500">画像を生成中...</span>
+            ) : shiftImageUrl ? (
+              <button
+                onClick={downloadImage}
+                className="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700"
+              >
+                シフト表画像を保存
+              </button>
+            ) : null}
           </div>
 
           {/* シフト表（HTML） */}
