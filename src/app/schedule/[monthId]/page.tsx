@@ -474,9 +474,32 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                     );
                   })}
                 </div>
-                <div className="px-4 py-4 bg-white border-t border-gray-200">
+                <div className="px-4 py-4 bg-white border-t border-gray-200 space-y-1">
                   <p className="text-sm font-bold text-red-600">⚠️ 変更の際はLINEにてご連絡ください</p>
+                  <p className="text-xs text-gray-500">人数不足の時間帯に入れる方も、お気軽にご連絡ください</p>
                 </div>
+                {/* 給与見込み */}
+                {profile && (() => {
+                  const mySlots = Object.entries(shift.assignments)
+                    .filter(([, uids]) => uids.includes(user?.uid || ""))
+                    .map(([key]) => key);
+                  const classCount = profile.classCount || 0;
+                  const effectiveRate = getEffectiveRate(classCount, profile.hourlyRate || 0);
+                  const scheduledMinutes = mySlots.length * CLASS_DURATION_MINUTES;
+                  const classPay = Math.round(effectiveRate * (scheduledMinutes / 60));
+                  const transportCost = profile.transportCost || 0;
+                  const totalPay = classPay + (mySlots.length > 0 ? transportCost : 0);
+                  if (mySlots.length === 0 || effectiveRate === 0) return null;
+                  return (
+                    <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">今月の給与（見込み）</span>
+                        <span className="text-base font-bold text-brand-700">¥{totalPay.toLocaleString()}</span>
+                      </div>
+                      <div className="text-[11px] text-gray-400 mt-0.5">{mySlots.length}コマ × 時給¥{effectiveRate.toLocaleString()}{transportCost > 0 ? ` + 交通費¥${transportCost.toLocaleString()}` : ""}</div>
+                    </div>
+                  );
+                })()}
                 <div className="px-4 py-3 border-t border-gray-100 flex gap-2">
                   <button
                     onClick={downloadShiftImage}
