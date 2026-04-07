@@ -476,7 +476,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                 </div>
                 <div className="px-4 py-4 bg-white border-t border-gray-200 space-y-1">
                   <p className="text-sm font-bold text-red-600">⚠️ 変更の際はLINEにてご連絡ください</p>
-                  <p className="text-xs text-gray-500">人数不足の時間帯に入れる方も、お気軽にご連絡ください</p>
+                  <p className="text-xs font-bold text-red-600">人数不足の時間帯に入れる方も、お気軽にご連絡ください</p>
                 </div>
                 {/* 給与見込み */}
                 {profile && (() => {
