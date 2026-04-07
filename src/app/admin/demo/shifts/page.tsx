@@ -483,7 +483,7 @@ export default function DemoShiftsPage() {
                           isAssigned ? (
                             <span className="text-brand-600 text-lg leading-none">●</span>
                           ) : (
-                            <span className="text-gray-700 text-lg leading-none">●</span>
+                            <span className="text-gray-400 text-lg leading-none">●</span>
                           )
                         ) : (
                           <span className="text-gray-200">—</span>
