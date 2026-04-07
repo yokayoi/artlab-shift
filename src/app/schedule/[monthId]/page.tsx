@@ -451,8 +451,8 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                     );
                   })}
                 </div>
-                <div className="px-4 py-4 bg-amber-50 border-t border-amber-200">
-                  <p className="text-sm font-bold text-amber-800">変更の際はLINEにてご連絡ください</p>
+                <div className="px-4 py-4 bg-white border-t border-gray-200">
+                  <p className="text-sm font-bold text-red-600">⚠️ 変更の際はLINEにてご連絡ください</p>
                 </div>
               </div>
             );
