@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState, useRef, use } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { getSchedule, getAvailability, saveAvailability, getShift, saveShift, getActiveAnnouncements, getCollectingSchedules, getAttendance, checkIn as firestoreCheckIn, checkOut as firestoreCheckOut, editMyAttendanceTime, resetDayAttendance, getMonthAvailabilities, getAllUsers, updateSchedule } from "@/lib/firebase/firestore";
 import { MonthSchedule, Availability, ShiftAssignment, Announcement, Attendance, UserProfile } from "@/lib/types";
 import { getSlotKey, parseMonthId, formatMonthId, formatDateShort, formatDeadline, isDeadlinePassed, getSlotDate, getTodayString, timestampToTimeString, datetimeLocalToTimestamp, timestampToDatetimeLocal } from "@/lib/utils/dateCalc";
 import { CLASS_TYPE_COLORS, STATUS_LABELS, CLASS_DURATION_MINUTES, TRAINING_MAX, LAUNCH_YEAR, LAUNCH_MONTH, DEMO_MONTH_ID, getTier, getNextTier, isTraining, getEffectiveRate, getRequiredFacilitators } from "@/lib/utils/constants";
+import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
 
 export default function FacilitatorSchedulePage({ params }: { params: Promise<{ monthId: string }> }) {
   const { monthId } = use(params);
@@ -27,6 +29,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
   const [sparkleKey, setSparkleKey] = useState<string | null>(null);
   const [allAvailabilities, setAllAvailabilities] = useState<Availability[]>([]);
   const [adminUids, setAdminUids] = useState<Set<string>>(new Set());
+  const shiftImageRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -230,6 +233,26 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
   }
 
   const isPublished = schedule?.status === "published" || schedule?.status === "shift_created";
+
+  const downloadShiftImage = async () => {
+    if (!shiftImageRef.current) return;
+    const canvas = await html2canvas(shiftImageRef.current, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
+    const link = document.createElement("a");
+    link.download = `シフト表_${month}月.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  };
+
+  const downloadShiftPdf = async () => {
+    if (!shiftImageRef.current) return;
+    const canvas = await html2canvas(shiftImageRef.current, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
+    const imgData = canvas.toDataURL("image/png");
+    const pdfW = canvas.width * 0.264583;
+    const pdfH = canvas.height * 0.264583;
+    const pdf = new jsPDF({ orientation: pdfW > pdfH ? "landscape" : "portrait", unit: "mm", format: [pdfW, pdfH] });
+    pdf.addImage(imgData, "PNG", 0, 0, pdfW, pdfH);
+    pdf.save(`シフト表_${month}月.pdf`);
+  };
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
@@ -453,6 +476,20 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                 </div>
                 <div className="px-4 py-4 bg-white border-t border-gray-200">
                   <p className="text-sm font-bold text-red-600">⚠️ 変更の際はLINEにてご連絡ください</p>
+                </div>
+                <div className="px-4 py-3 border-t border-gray-100 flex gap-2">
+                  <button
+                    onClick={downloadShiftImage}
+                    className="px-3 py-1.5 text-xs font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700"
+                  >
+                    画像を保存
+                  </button>
+                  <button
+                    onClick={downloadShiftPdf}
+                    className="px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
+                  >
+                    PDFを保存
+                  </button>
                 </div>
               </div>
             );
@@ -1312,6 +1349,130 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
           }
         }
       `}</style>
+
+      {/* 画像生成用の非表示シフト表 */}
+      {shift && schedule && (
+        <div style={{ position: "absolute", left: "-9999px", top: 0 }}>
+          <div ref={shiftImageRef} style={{ width: 120 + Math.max(...schedule.days.map((day) => {
+            const uids = new Set<string>();
+            day.slots.filter((s) => s.needsFacilitator && s.classType).forEach((slot) => {
+              (shift.assignments?.[getSlotKey(day.date, slot.time)] || []).forEach((uid) => uids.add(uid));
+            });
+            return uids.size;
+          }), 1) * 120, padding: "20px 16px", backgroundColor: "#fff", fontFamily: "sans-serif" }}>
+            <div style={{ textAlign: "center", marginBottom: 12 }}>
+              <div style={{ fontSize: 18, fontWeight: "bold", color: "#1f2937" }}>{month}月 シフト表</div>
+            </div>
+            <div style={{ display: "flex", gap: 12, justifyContent: "center", marginBottom: 16 }}>
+              {["カリキュラム", "オーダーメイド"].map((type) => {
+                const c = CLASS_TYPE_COLORS[type];
+                return (
+                  <span key={type} style={{ backgroundColor: c.bg, color: c.text, padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 500 }}>
+                    {type}
+                  </span>
+                );
+              })}
+            </div>
+            {schedule.days.map((day) => {
+              const activeSlots = day.slots.filter((s) => s.needsFacilitator && s.classType);
+              if (activeSlots.length === 0) return null;
+              const dayFacUids: string[] = [];
+              activeSlots.forEach((slot) => {
+                (shift.assignments?.[getSlotKey(day.date, slot.time)] || []).forEach((uid) => {
+                  if (!dayFacUids.includes(uid)) dayFacUids.push(uid);
+                });
+              });
+              const facCells: Record<string, { show: boolean; rowSpan: number; assigned: boolean }[]> = {};
+              dayFacUids.forEach((uid) => {
+                const cells: { show: boolean; rowSpan: number; assigned: boolean }[] = [];
+                let i = 0;
+                while (i < activeSlots.length) {
+                  const k = getSlotKey(day.date, activeSlots[i].time);
+                  if ((shift.assignments?.[k] || []).includes(uid)) {
+                    let span = 1;
+                    while (i + span < activeSlots.length) {
+                      const nk = getSlotKey(day.date, activeSlots[i + span].time);
+                      if ((shift.assignments?.[nk] || []).includes(uid)) span++;
+                      else break;
+                    }
+                    cells.push({ show: true, rowSpan: span, assigned: true });
+                    for (let j = 1; j < span; j++) cells.push({ show: false, rowSpan: 0, assigned: true });
+                    i += span;
+                  } else {
+                    cells.push({ show: true, rowSpan: 1, assigned: false });
+                    i++;
+                  }
+                }
+                facCells[uid] = cells;
+              });
+              const facNameMap: Record<string, string> = {};
+              activeSlots.forEach((slot) => {
+                const k = getSlotKey(day.date, slot.time);
+                const uids = shift.assignments?.[k] || [];
+                const names = shift.assignmentNames?.[k] || [];
+                uids.forEach((uid, i) => { if (!facNameMap[uid]) facNameMap[uid] = names[i] || uid; });
+              });
+              return (
+                <div key={day.date} style={{ marginBottom: 16 }}>
+                  <div style={{ backgroundColor: "#f3f4f6", padding: "6px 12px", borderRadius: 6, marginBottom: 4, fontSize: 14, fontWeight: "bold", color: "#374151" }}>
+                    {formatDateShort(day.date)}
+                  </div>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <tbody>
+                      {activeSlots.map((slot, slotIdx) => {
+                        const key = getSlotKey(day.date, slot.time);
+                        const colors = CLASS_TYPE_COLORS[slot.classType!];
+                        const assignedCount = (shift.assignments?.[key] || []).length;
+                        const required = getRequiredFacilitators(slot.childCount);
+                        const isShort = required > 0 && assignedCount < required;
+                        return (
+                          <tr key={key}>
+                            <td style={{ border: "1px solid #e5e7eb", padding: "6px 10px", verticalAlign: "top", width: 110 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                                <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", backgroundColor: colors.bg, border: `2px solid ${colors.border}`, flexShrink: 0 }} />
+                                <span style={{ fontWeight: "bold", color: "#4b5563", fontSize: 13 }}>{slot.time}</span>
+                              </div>
+                              {slot.childCount && (
+                                <div style={{ fontSize: 13, fontWeight: "bold", color: "#059669", marginTop: 2, paddingLeft: 15 }}>子{slot.childCount}名</div>
+                              )}
+                              {isShort && (
+                                <div style={{ fontSize: 11, fontWeight: "bold", color: "#dc2626", marginTop: 2, paddingLeft: 15 }}>⚠ あと{required - assignedCount}名</div>
+                              )}
+                            </td>
+                            {dayFacUids.map((uid) => {
+                              const cell = facCells[uid][slotIdx];
+                              if (!cell.show) return null;
+                              return (
+                                <td
+                                  key={uid}
+                                  rowSpan={cell.rowSpan}
+                                  style={{
+                                    border: "1px solid #e5e7eb",
+                                    padding: "6px 10px",
+                                    textAlign: "center",
+                                    fontSize: 13,
+                                    fontWeight: 500,
+                                    verticalAlign: "middle",
+                                    whiteSpace: "nowrap",
+                                    backgroundColor: cell.assigned ? "#eff6ff" : undefined,
+                                    color: cell.assigned ? "#374151" : undefined,
+                                  }}
+                                >
+                                  {cell.assigned ? `${facNameMap[uid]}さん` : ""}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
