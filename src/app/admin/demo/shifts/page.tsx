@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { getSlotKey, formatDateShort } from "@/lib/utils/dateCalc";
-import { getRequiredFacilitators } from "@/lib/utils/constants";
+import { getRequiredFacilitators, CLASS_TYPE_COLORS } from "@/lib/utils/constants";
 import { DaySchedule } from "@/lib/types";
+import html2canvas from "html2canvas";
 
 // ===== モックデータ =====
 
@@ -62,31 +63,31 @@ const MOCK_DAYS: DaySchedule[] = [
 
 // 固定のモック空き状況（再現性のため乱数ではなくハードコード）
 const MOCK_AVAILABILITY: Record<string, Record<string, boolean>> = {
-  "demo-1": { // さくら: 土曜にほぼ参加可能
+  "demo-1": {
     "2026-04-11_10:30": true, "2026-04-11_12:00": true, "2026-04-11_14:30": true, "2026-04-11_16:00": true,
     "2026-04-12_10:30": false, "2026-04-12_12:00": false, "2026-04-12_14:30": true,
     "2026-04-18_10:30": true, "2026-04-18_12:00": true, "2026-04-18_14:30": true, "2026-04-18_16:00": false,
     "2026-04-19_10:30": false, "2026-04-19_12:00": true, "2026-04-19_14:30": true, "2026-04-19_16:00": true,
   },
-  "demo-2": { // はるか: 日曜メイン
+  "demo-2": {
     "2026-04-11_10:30": false, "2026-04-11_12:00": true, "2026-04-11_14:30": false, "2026-04-11_16:00": false,
     "2026-04-12_10:30": true, "2026-04-12_12:00": true, "2026-04-12_14:30": true,
     "2026-04-18_10:30": false, "2026-04-18_12:00": false, "2026-04-18_14:30": true, "2026-04-18_16:00": true,
     "2026-04-19_10:30": true, "2026-04-19_12:00": true, "2026-04-19_14:30": true, "2026-04-19_16:00": false,
   },
-  "demo-3": { // ゆうき: 午前中心
+  "demo-3": {
     "2026-04-11_10:30": true, "2026-04-11_12:00": true, "2026-04-11_14:30": false, "2026-04-11_16:00": false,
     "2026-04-12_10:30": true, "2026-04-12_12:00": true, "2026-04-12_14:30": false,
     "2026-04-18_10:30": true, "2026-04-18_12:00": true, "2026-04-18_14:30": false, "2026-04-18_16:00": false,
     "2026-04-19_10:30": true, "2026-04-19_12:00": false, "2026-04-19_14:30": false, "2026-04-19_16:00": false,
   },
-  "demo-4": { // あかり: まんべんなく
+  "demo-4": {
     "2026-04-11_10:30": true, "2026-04-11_12:00": false, "2026-04-11_14:30": true, "2026-04-11_16:00": true,
     "2026-04-12_10:30": true, "2026-04-12_12:00": false, "2026-04-12_14:30": true,
     "2026-04-18_10:30": false, "2026-04-18_12:00": true, "2026-04-18_14:30": true, "2026-04-18_16:00": true,
     "2026-04-19_10:30": true, "2026-04-19_12:00": true, "2026-04-19_14:30": false, "2026-04-19_16:00": true,
   },
-  "demo-5": { // そら: 午後中心
+  "demo-5": {
     "2026-04-11_10:30": false, "2026-04-11_12:00": false, "2026-04-11_14:30": true, "2026-04-11_16:00": true,
     "2026-04-12_10:30": false, "2026-04-12_12:00": true, "2026-04-12_14:30": true,
     "2026-04-18_10:30": false, "2026-04-18_12:00": true, "2026-04-18_14:30": true, "2026-04-18_16:00": true,
@@ -94,32 +95,11 @@ const MOCK_AVAILABILITY: Record<string, Record<string, boolean>> = {
   },
 };
 
-function generateShiftText(assignments: Record<string, string[]>): string {
-  const lines: string[] = ["【シフト表】"];
-  lines.push("");
-
-  MOCK_DAYS.forEach((day) => {
-    const hasSlots = day.slots.some((s) => s.needsFacilitator && s.classType);
-    if (!hasSlots) return;
-
-    lines.push(`■ ${formatDateShort(day.date)}  ${day.dayLabel}`);
-
-    day.slots.forEach((slot) => {
-      if (!slot.needsFacilitator || !slot.classType) return;
-      const key = getSlotKey(day.date, slot.time);
-      const assigned = (assignments[key] || []).map((uid) =>
-        MOCK_FACILITATORS.find((f) => f.uid === uid)?.nickname || uid
-      );
-      const names = assigned.length > 0 ? assigned.join("、") : "（未定）";
-      lines.push(`  ${slot.time}  ${slot.classType}（子${slot.childCount || 0}名）`);
-      lines.push(`    → ${names}`);
-    });
-
-    lines.push("");
-  });
-
-  return lines.join("\n").trim();
-}
+const ANNOUNCEMENT_TEXT = `お疲れ様です。
+4月のシフトが確定しました。
+添付のシフト表をご確認ください。
+変更がある場合は早めにご連絡をお願いします。
+よろしくお願いいたします。`;
 
 export default function DemoShiftsPage() {
   const { user, isAdmin, loading } = useAuth();
@@ -130,6 +110,9 @@ export default function DemoShiftsPage() {
   const [simulationNames, setSimulationNames] = useState<Record<string, string[]> | null>(null);
   const [completed, setCompleted] = useState<"saved" | "published" | null>(null);
   const [copied, setCopied] = useState(false);
+  const [shiftImageUrl, setShiftImageUrl] = useState<string | null>(null);
+  const [generatingImage, setGeneratingImage] = useState(false);
+  const shiftTableRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) router.push("/");
@@ -255,6 +238,35 @@ export default function DemoShiftsPage() {
     setAssignmentNames(simulationNames);
     setSimulation(null);
     setSimulationNames(null);
+  };
+
+  const generateImage = useCallback(async () => {
+    if (!shiftTableRef.current) return;
+    setGeneratingImage(true);
+    try {
+      const canvas = await html2canvas(shiftTableRef.current, {
+        scale: 2,
+        backgroundColor: "#ffffff",
+        useCORS: true,
+      });
+      setShiftImageUrl(canvas.toDataURL("image/png"));
+    } catch (e) {
+      console.error("画像生成に失敗:", e);
+    }
+    setGeneratingImage(false);
+  }, []);
+
+  const handlePublish = useCallback(() => {
+    setCompleted("published");
+    setTimeout(() => generateImage(), 100);
+  }, [generateImage]);
+
+  const downloadImage = () => {
+    if (!shiftImageUrl) return;
+    const link = document.createElement("a");
+    link.download = "シフト表_4月.png";
+    link.href = shiftImageUrl;
+    link.click();
   };
 
   if (loading) {
@@ -559,33 +571,112 @@ export default function DemoShiftsPage() {
           シフトを保存（下書き）
         </button>
         <button
-          onClick={() => setCompleted("published")}
+          onClick={handlePublish}
           className="px-6 py-3 rounded-xl font-medium text-white bg-green-600 hover:bg-green-700 transition-colors"
         >
           シフトを公開する
         </button>
       </div>
 
-      {completed && (() => {
-        const shiftText = generateShiftText(assignments);
-        return (
-          <div className="mt-6 space-y-4">
-            <div className="px-4 py-4 bg-green-50 border border-green-200 rounded-xl">
-              <p className="text-sm text-green-800 font-medium">
-                {completed === "published"
-                  ? "シフトを公開しました（デモ）"
-                  : "シフトを下書き保存しました（デモ）"}
-              </p>
-              <p className="text-xs text-green-600 mt-1">実際のデータには影響していません。</p>
-            </div>
+      {/* 画像生成用の非表示シフト表 */}
+      <div style={{ position: "absolute", left: "-9999px", top: 0 }}>
+        <div ref={shiftTableRef} style={{ width: 600, padding: 24, backgroundColor: "#fff", fontFamily: "sans-serif" }}>
+          <div style={{ textAlign: "center", marginBottom: 16 }}>
+            <div style={{ fontSize: 20, fontWeight: "bold", color: "#1f2937" }}>4月 シフト表</div>
+          </div>
+          {MOCK_DAYS.map((day) => {
+            const activeSlots = day.slots.filter((s) => s.needsFacilitator && s.classType);
+            if (activeSlots.length === 0) return null;
+            return (
+              <div key={day.date} style={{ marginBottom: 16 }}>
+                <div style={{ backgroundColor: "#f3f4f6", padding: "6px 12px", borderRadius: 6, marginBottom: 4, fontSize: 14, fontWeight: "bold", color: "#374151" }}>
+                  {formatDateShort(day.date)}　{day.dayLabel}
+                </div>
+                {activeSlots.map((slot) => {
+                  const key = getSlotKey(day.date, slot.time);
+                  const assigned = (assignments[key] || []).map((uid) => getName(uid));
+                  const colors = CLASS_TYPE_COLORS[slot.classType!];
+                  return (
+                    <div key={key} style={{ display: "flex", alignItems: "center", padding: "6px 12px", borderBottom: "1px solid #e5e7eb", fontSize: 13 }}>
+                      <span style={{ width: 50, fontWeight: "bold", color: "#6b7280" }}>{slot.time}</span>
+                      <span style={{ backgroundColor: colors.bg, color: colors.text, padding: "2px 8px", borderRadius: 4, fontSize: 11, marginRight: 8 }}>
+                        {slot.classType}
+                      </span>
+                      <span style={{ color: "#059669", fontSize: 11, marginRight: 12 }}>子{slot.childCount}名</span>
+                      <span style={{ color: "#1f2937", fontWeight: 500 }}>
+                        {assigned.length > 0 ? assigned.join("、") : "—"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
-            {completed === "published" && (
+      {/* 公開結果 */}
+      {completed && (
+        <div className="mt-6 space-y-4">
+          <div className="px-4 py-4 bg-green-50 border border-green-200 rounded-xl">
+            <p className="text-sm text-green-800 font-medium">
+              {completed === "published"
+                ? "シフトを公開しました（デモ）"
+                : "シフトを下書き保存しました（デモ）"}
+            </p>
+            <p className="text-xs text-green-600 mt-1">実際のデータには影響していません。</p>
+          </div>
+
+          {completed === "published" && (
+            <>
+              {/* シフト表画像 */}
               <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
-                  <h3 className="text-sm font-bold text-gray-700">LINE送信用テキスト</h3>
+                  <h3 className="text-sm font-bold text-gray-700">シフト表（画像）</h3>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={generateImage}
+                      disabled={generatingImage}
+                      className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                    >
+                      再生成
+                    </button>
+                    {shiftImageUrl && (
+                      <button
+                        onClick={downloadImage}
+                        className="px-3 py-1.5 text-xs font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700"
+                      >
+                        画像を保存
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="p-4">
+                  {generatingImage ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-600" />
+                      <span className="ml-2 text-sm text-gray-500">画像を生成中...</span>
+                    </div>
+                  ) : shiftImageUrl ? (
+                    <img
+                      src={shiftImageUrl}
+                      alt="シフト表"
+                      className="w-full max-w-[500px] mx-auto rounded-lg border border-gray-200"
+                    />
+                  ) : (
+                    <p className="text-sm text-gray-400 text-center py-4">画像を生成できませんでした</p>
+                  )}
+                  <p className="text-xs text-gray-400 mt-2 text-center">画像を長押しで保存、またはボタンからダウンロードできます</p>
+                </div>
+              </div>
+
+              {/* 案内文 */}
+              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
+                  <h3 className="text-sm font-bold text-gray-700">LINE案内文</h3>
                   <button
                     onClick={() => {
-                      navigator.clipboard.writeText(shiftText);
+                      navigator.clipboard.writeText(ANNOUNCEMENT_TEXT);
                       setCopied(true);
                       setTimeout(() => setCopied(false), 2000);
                     }}
@@ -599,28 +690,28 @@ export default function DemoShiftsPage() {
                   </button>
                 </div>
                 <pre className="px-4 py-3 text-sm text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">
-                  {shiftText}
+                  {ANNOUNCEMENT_TEXT}
                 </pre>
               </div>
-            )}
+            </>
+          )}
 
-            <div className="flex gap-2">
-              <button
-                onClick={() => { setCompleted(null); setCopied(false); handleClearAll(); }}
-                className="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                最初からやり直す
-              </button>
-              <button
-                onClick={() => router.push("/admin")}
-                className="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                ダッシュボードへ戻る
-              </button>
-            </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setCompleted(null); setCopied(false); setShiftImageUrl(null); handleClearAll(); }}
+              className="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              最初からやり直す
+            </button>
+            <button
+              onClick={() => router.push("/admin")}
+              className="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              ダッシュボードへ戻る
+            </button>
           </div>
-        );
-      })()}
+        </div>
+      )}
     </div>
   );
 }
