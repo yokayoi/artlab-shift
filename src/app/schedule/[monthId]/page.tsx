@@ -674,7 +674,15 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                 <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
                   <h3 className="text-sm font-bold text-gray-700">{month}月 シフト表</h3>
                 </div>
-                <div className="p-4 space-y-4">
+                <div className="px-4 pt-3 pb-1 flex gap-4 text-xs text-gray-500">
+                  {Object.entries(CLASS_TYPE_COLORS).map(([type, c]) => (
+                    <span key={type} className="flex items-center gap-1">
+                      <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: c.text }} />
+                      {type}
+                    </span>
+                  ))}
+                </div>
+                <div className="p-4 pt-2 space-y-4">
                   {schedule.days.map((day) => {
                     const activeSlots = day.slots.filter((s) => s.needsFacilitator && s.classType);
                     if (activeSlots.length === 0) return null;
@@ -726,13 +734,13 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                               const colors = CLASS_TYPE_COLORS[slot.classType!];
                               return (
                                 <tr key={key}>
-                                  <td className="border border-gray-200 px-3 py-2 align-top w-24">
-                                    <div className="font-bold text-gray-600 text-sm">{slot.time}</div>
-                                    <span className="inline-block px-1.5 py-0.5 rounded text-[10px] mt-0.5" style={{ backgroundColor: colors.bg, color: colors.text }}>
-                                      {slot.classType}
-                                    </span>
+                                  <td className="border border-gray-200 px-3 py-2 align-top w-28">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: colors.text }} />
+                                      <span className="font-bold text-gray-600 text-sm">{slot.time}</span>
+                                    </div>
                                     {slot.childCount && (
-                                      <div className="text-[10px] text-green-600 mt-0.5">子{slot.childCount}名</div>
+                                      <div className="text-sm font-bold text-green-600 mt-0.5 pl-4">子{slot.childCount}名</div>
                                     )}
                                   </td>
                                   {dayFacUids.map((uid) => {
