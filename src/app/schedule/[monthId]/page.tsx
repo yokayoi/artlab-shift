@@ -380,7 +380,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                     );
                   })}
                 </div>
-                <div className="p-4 pt-2 space-y-4">
+                <div className="p-4 pt-2 space-y-4 overflow-x-auto">
                   {schedule.days.map((day) => {
                     const activeSlots = day.slots.filter((s) => s.needsFacilitator && s.classType);
                     if (activeSlots.length === 0) return null;
