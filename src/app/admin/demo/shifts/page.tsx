@@ -785,40 +785,76 @@ export default function DemoShiftsPage() {
                   {MOCK_DAYS.map((day) => {
                     const activeSlots = day.slots.filter((s) => s.needsFacilitator && s.classType);
                     if (activeSlots.length === 0) return null;
+                    const dayFacUids: string[] = [];
+                    activeSlots.forEach((slot) => {
+                      (assignments[getSlotKey(day.date, slot.time)] || []).forEach((uid) => {
+                        if (!dayFacUids.includes(uid)) dayFacUids.push(uid);
+                      });
+                    });
+                    const facCells: Record<string, { show: boolean; rowSpan: number; assigned: boolean }[]> = {};
+                    dayFacUids.forEach((uid) => {
+                      const cells: { show: boolean; rowSpan: number; assigned: boolean }[] = [];
+                      let i = 0;
+                      while (i < activeSlots.length) {
+                        const k = getSlotKey(day.date, activeSlots[i].time);
+                        if ((assignments[k] || []).includes(uid)) {
+                          let span = 1;
+                          while (i + span < activeSlots.length) {
+                            const nk = getSlotKey(day.date, activeSlots[i + span].time);
+                            if ((assignments[nk] || []).includes(uid)) span++;
+                            else break;
+                          }
+                          cells.push({ show: true, rowSpan: span, assigned: true });
+                          for (let j = 1; j < span; j++) cells.push({ show: false, rowSpan: 0, assigned: true });
+                          i += span;
+                        } else {
+                          cells.push({ show: true, rowSpan: 1, assigned: false });
+                          i++;
+                        }
+                      }
+                      facCells[uid] = cells;
+                    });
                     return (
                       <div key={day.date}>
                         <div className="bg-gray-100 px-3 py-1.5 rounded-md mb-1">
                           <span className="text-sm font-bold text-gray-700">{formatDateShort(day.date)}　{day.dayLabel}</span>
                         </div>
-                        {activeSlots.map((slot, slotIdx) => {
-                          const key = getSlotKey(day.date, slot.time);
-                          const assignedUids = assignments[key] || [];
-                          const prevUids = slotIdx > 0
-                            ? (assignments[getSlotKey(day.date, activeSlots[slotIdx - 1].time)] || [])
-                            : [];
-                          const continuingUids = new Set(assignedUids.filter((uid) => prevUids.includes(uid)));
-                          const colors = CLASS_TYPE_COLORS[slot.classType!];
-                          return (
-                            <div key={key} className="px-3 py-1.5 border-b border-gray-100">
-                              <div className="flex items-center gap-1.5 text-sm">
-                                <span className="font-bold text-gray-500 w-11 shrink-0">{slot.time}</span>
-                                <span className="inline-block px-1.5 py-0.5 rounded text-[11px] shrink-0" style={{ backgroundColor: colors.bg, color: colors.text }}>
-                                  {slot.classType}
-                                </span>
-                                {slot.childCount && (
-                                  <span className="text-[11px] text-green-600 shrink-0">子{slot.childCount}名</span>
-                                )}
-                              </div>
-                              <div className="mt-0.5 pl-11">
-                                {assignedUids.length > 0 ? assignedUids.map((uid) => (
-                                  <div key={uid} className={`text-sm font-medium ${continuingUids.has(uid) ? "text-gray-400" : "text-gray-700"}`}>
-                                    {continuingUids.has(uid) ? `〃${getName(uid)}さん` : `${getName(uid)}さん`}
-                                  </div>
-                                )) : <div className="text-sm text-gray-400">—</div>}
-                              </div>
-                            </div>
-                          );
-                        })}
+                        <table className="w-full border-collapse">
+                          <tbody>
+                            {activeSlots.map((slot, slotIdx) => {
+                              const key = getSlotKey(day.date, slot.time);
+                              const colors = CLASS_TYPE_COLORS[slot.classType!];
+                              return (
+                                <tr key={key}>
+                                  <td className="border border-gray-200 px-3 py-2 align-top w-24">
+                                    <div className="font-bold text-gray-600 text-sm">{slot.time}</div>
+                                    <span className="inline-block px-1.5 py-0.5 rounded text-[10px] mt-0.5" style={{ backgroundColor: colors.bg, color: colors.text }}>
+                                      {slot.classType}
+                                    </span>
+                                    {slot.childCount && (
+                                      <div className="text-[10px] text-green-600 mt-0.5">子{slot.childCount}名</div>
+                                    )}
+                                  </td>
+                                  {dayFacUids.map((uid) => {
+                                    const cell = facCells[uid][slotIdx];
+                                    if (!cell.show) return null;
+                                    return (
+                                      <td
+                                        key={uid}
+                                        rowSpan={cell.rowSpan}
+                                        className={`border border-gray-200 px-3 py-2 text-center text-sm font-medium align-middle whitespace-nowrap ${
+                                          cell.assigned ? "bg-brand-50 text-gray-700" : ""
+                                        }`}
+                                      >
+                                        {cell.assigned ? `${getName(uid)}さん` : ""}
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
                       </div>
                     );
                   })}
