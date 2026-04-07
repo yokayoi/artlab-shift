@@ -95,6 +95,11 @@ const MOCK_AVAILABILITY: Record<string, Record<string, boolean>> = {
   },
 };
 
+const MOCK_SLOT_NOTES: Record<string, string> = {
+  "2026-04-11_14:30": "体験会あり",
+  "2026-04-18_10:30": "振替対応",
+};
+
 const ANNOUNCEMENT_TEXT = `お疲れ様です。
 4月のシフトが確定しました。
 添付のシフト表をご確認ください。
@@ -394,7 +399,12 @@ export default function DemoShiftsPage() {
                       {sk.dateLabel}
                     </td>
                   )}
-                  <td className="px-2 py-2 text-gray-500 whitespace-nowrap text-xs">{sk.time}</td>
+                  <td className="px-2 py-2 text-gray-500 whitespace-nowrap text-xs">
+                    {sk.time}
+                    {MOCK_SLOT_NOTES[sk.key] && (
+                      <div className="text-[10px] text-orange-500 font-medium mt-0.5">{MOCK_SLOT_NOTES[sk.key]}</div>
+                    )}
+                  </td>
                   <td className="px-1 py-2 text-center text-xs text-green-700 font-semibold">
                     {sk.childCount || <span className="text-gray-300 font-normal">—</span>}
                     {required > 0 && (

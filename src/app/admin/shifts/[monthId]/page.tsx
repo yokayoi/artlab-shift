@@ -323,7 +323,12 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
                       {sk.dateLabel}
                     </td>
                   )}
-                  <td className="px-2 py-2 text-gray-500 whitespace-nowrap text-xs">{sk.time}</td>
+                  <td className="px-2 py-2 text-gray-500 whitespace-nowrap text-xs">
+                    {sk.time}
+                    {schedule.slotNotes?.[sk.key] && (
+                      <div className="text-[10px] text-orange-500 font-medium mt-0.5">{schedule.slotNotes[sk.key]}</div>
+                    )}
+                  </td>
                   <td className="px-1 py-2 text-center text-xs text-green-700 font-semibold">
                     {sk.childCount || <span className="text-gray-300 font-normal">—</span>}
                     {required > 0 && (
