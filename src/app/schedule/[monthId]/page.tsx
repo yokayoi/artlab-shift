@@ -675,12 +675,14 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                   <h3 className="text-sm font-bold text-gray-700">{month}月 シフト表</h3>
                 </div>
                 <div className="px-4 pt-3 pb-1 flex gap-4 text-xs text-gray-500">
-                  {Object.entries(CLASS_TYPE_COLORS).map(([type, c]) => (
-                    <span key={type} className="flex items-center gap-1">
-                      <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: c.text }} />
-                      {type}
-                    </span>
-                  ))}
+                  {["カリキュラム", "オーダーメイド"].map((type) => {
+                    const c = CLASS_TYPE_COLORS[type];
+                    return (
+                      <span key={type} className="flex items-center gap-1">
+                        <span className="inline-block px-1.5 py-0.5 rounded text-[11px] font-medium" style={{ backgroundColor: c.bg, color: c.text }}>{type}</span>
+                      </span>
+                    );
+                  })}
                 </div>
                 <div className="p-4 pt-2 space-y-4">
                   {schedule.days.map((day) => {
