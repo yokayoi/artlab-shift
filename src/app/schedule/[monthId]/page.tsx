@@ -502,6 +502,32 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                               </div>
                             </>
                           ) : null}
+                          {/* 備考表示（全員）/ 備考編集（管理者のみ） */}
+                          {isAdmin ? (
+                            <input
+                              type="text"
+                              placeholder="備考"
+                              value={schedule.slotNotes?.[key] || ""}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const updatedNotes = { ...(schedule.slotNotes || {}) };
+                                if (val.trim()) {
+                                  updatedNotes[key] = val;
+                                } else {
+                                  delete updatedNotes[key];
+                                }
+                                setSchedule({ ...schedule, slotNotes: updatedNotes } as MonthSchedule);
+                              }}
+                              onBlur={async () => {
+                                await updateSchedule(monthId, { slotNotes: schedule.slotNotes || {} });
+                              }}
+                              className="mt-2 w-full text-[10px] text-gray-500 bg-gray-50 border border-gray-200 rounded px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-brand-500 focus:bg-white placeholder-gray-300"
+                            />
+                          ) : schedule.slotNotes?.[key] ? (
+                            <div className="mt-2 text-[10px] text-gray-500 bg-gray-50 rounded px-1.5 py-1">
+                              {schedule.slotNotes[key]}
+                            </div>
+                          ) : null}
                         </div>
                       );
                     })}
