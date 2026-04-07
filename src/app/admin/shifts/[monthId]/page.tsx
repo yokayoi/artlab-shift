@@ -436,7 +436,7 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
                       <tr key={sk.key} className="border-b border-gray-100">
                         {isFirst && (
                           <td
-                            rowSpan={dateRowSpans[sk.date]}
+                            rowSpan={dateSlotCounts[sk.date]}
                             className="px-3 py-2 text-gray-700 whitespace-nowrap text-xs font-medium align-middle border-r border-gray-100"
                           >
                             {sk.dateLabel}
