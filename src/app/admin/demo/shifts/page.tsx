@@ -580,29 +580,29 @@ export default function DemoShiftsPage() {
 
       {/* 画像生成用の非表示シフト表 */}
       <div style={{ position: "absolute", left: "-9999px", top: 0 }}>
-        <div ref={shiftTableRef} style={{ width: 600, padding: 24, backgroundColor: "#fff", fontFamily: "sans-serif" }}>
-          <div style={{ textAlign: "center", marginBottom: 16 }}>
-            <div style={{ fontSize: 20, fontWeight: "bold", color: "#1f2937" }}>4月 シフト表</div>
+        <div ref={shiftTableRef} style={{ width: 420, padding: "20px 16px", backgroundColor: "#fff", fontFamily: "sans-serif" }}>
+          <div style={{ textAlign: "center", marginBottom: 20 }}>
+            <div style={{ fontSize: 24, fontWeight: "bold", color: "#1f2937" }}>4月 シフト表</div>
           </div>
           {MOCK_DAYS.map((day) => {
             const activeSlots = day.slots.filter((s) => s.needsFacilitator && s.classType);
             if (activeSlots.length === 0) return null;
             return (
-              <div key={day.date} style={{ marginBottom: 16 }}>
-                <div style={{ backgroundColor: "#f3f4f6", padding: "6px 12px", borderRadius: 6, marginBottom: 4, fontSize: 14, fontWeight: "bold", color: "#374151" }}>
+              <div key={day.date} style={{ marginBottom: 20 }}>
+                <div style={{ backgroundColor: "#f3f4f6", padding: "8px 12px", borderRadius: 6, marginBottom: 4, fontSize: 17, fontWeight: "bold", color: "#374151" }}>
                   {formatDateShort(day.date)}　{day.dayLabel}
                 </div>
                 {activeSlots.map((slot) => {
                   const key = getSlotKey(day.date, slot.time);
-                  const assigned = (assignments[key] || []).map((uid) => getName(uid));
+                  const assigned = (assignments[key] || []).map((uid) => getName(uid) + "さん");
                   const colors = CLASS_TYPE_COLORS[slot.classType!];
                   return (
-                    <div key={key} style={{ display: "flex", alignItems: "center", padding: "6px 12px", borderBottom: "1px solid #e5e7eb", fontSize: 13 }}>
-                      <span style={{ width: 50, fontWeight: "bold", color: "#6b7280" }}>{slot.time}</span>
-                      <span style={{ backgroundColor: colors.bg, color: colors.text, padding: "2px 8px", borderRadius: 4, fontSize: 11, marginRight: 8 }}>
+                    <div key={key} style={{ display: "flex", alignItems: "center", flexWrap: "wrap", padding: "8px 12px", borderBottom: "1px solid #e5e7eb", fontSize: 16 }}>
+                      <span style={{ width: 52, fontWeight: "bold", color: "#6b7280", flexShrink: 0 }}>{slot.time}</span>
+                      <span style={{ backgroundColor: colors.bg, color: colors.text, padding: "2px 8px", borderRadius: 4, fontSize: 13, marginRight: 8, flexShrink: 0 }}>
                         {slot.classType}
                       </span>
-                      <span style={{ color: "#059669", fontSize: 11, marginRight: 12 }}>子{slot.childCount}名</span>
+                      <span style={{ color: "#059669", fontSize: 13, marginRight: 8, flexShrink: 0 }}>子{slot.childCount}名</span>
                       <span style={{ color: "#1f2937", fontWeight: 500 }}>
                         {assigned.length > 0 ? assigned.join("、") : "—"}
                       </span>
