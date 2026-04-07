@@ -472,7 +472,36 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
                           const hasAvailability = avail?.slots[sk.key];
                           const isSimAssigned = simAssigned.includes(uid);
                           return (
-                            <td key={uid} className="px-2 py-2 text-center">
+                            <td
+                              key={uid}
+                              className={`px-2 py-2 text-center transition-colors ${
+                                hasAvailability ? "cursor-pointer hover:bg-orange-100" : ""
+                              }`}
+                              onClick={() => {
+                                if (!hasAvailability) return;
+                                const name = getName(uid, avail?.facilitatorName || "");
+                                setSimulation((prev) => {
+                                  if (!prev) return prev;
+                                  const current = prev[sk.key] || [];
+                                  return {
+                                    ...prev,
+                                    [sk.key]: isSimAssigned
+                                      ? current.filter((id) => id !== uid)
+                                      : [...current, uid],
+                                  };
+                                });
+                                setSimulationNames((prev) => {
+                                  if (!prev) return prev;
+                                  const current = prev[sk.key] || [];
+                                  return {
+                                    ...prev,
+                                    [sk.key]: isSimAssigned
+                                      ? current.filter((n) => n !== name)
+                                      : [...current, name],
+                                  };
+                                });
+                              }}
+                            >
                               {hasAvailability ? (
                                 isSimAssigned ? (
                                   <span className="text-orange-500 text-lg leading-none">●</span>
