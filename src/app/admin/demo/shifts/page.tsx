@@ -240,7 +240,11 @@ export default function DemoShiftsPage() {
     setSimulationNames(null);
   };
 
-  const generateImage = useCallback(async () => {
+  const handlePublish = () => {
+    setCompleted("published");
+  };
+
+  const generateImage = async () => {
     if (!shiftTableRef.current) return;
     setGeneratingImage(true);
     try {
@@ -254,12 +258,15 @@ export default function DemoShiftsPage() {
       console.error("画像生成に失敗:", e);
     }
     setGeneratingImage(false);
-  }, []);
+  };
 
-  const handlePublish = useCallback(() => {
-    setCompleted("published");
-    setTimeout(() => generateImage(), 100);
-  }, [generateImage]);
+  // 公開時にDOM更新後に画像生成
+  useEffect(() => {
+    if (completed === "published") {
+      const timer = setTimeout(() => generateImage(), 200);
+      return () => clearTimeout(timer);
+    }
+  }, [completed]);
 
   const downloadImage = () => {
     if (!shiftImageUrl) return;
@@ -597,15 +604,17 @@ export default function DemoShiftsPage() {
                   const assigned = (assignments[key] || []).map((uid) => getName(uid) + "さん");
                   const colors = CLASS_TYPE_COLORS[slot.classType!];
                   return (
-                    <div key={key} style={{ display: "flex", alignItems: "center", flexWrap: "wrap", padding: "8px 12px", borderBottom: "1px solid #e5e7eb", fontSize: 16 }}>
-                      <span style={{ width: 52, fontWeight: "bold", color: "#6b7280", flexShrink: 0 }}>{slot.time}</span>
-                      <span style={{ backgroundColor: colors.bg, color: colors.text, padding: "2px 8px", borderRadius: 4, fontSize: 13, marginRight: 8, flexShrink: 0 }}>
-                        {slot.classType}
-                      </span>
-                      <span style={{ color: "#059669", fontSize: 13, marginRight: 8, flexShrink: 0 }}>子{slot.childCount}名</span>
-                      <span style={{ color: "#1f2937", fontWeight: 500 }}>
+                    <div key={key} style={{ padding: "8px 12px", borderBottom: "1px solid #e5e7eb" }}>
+                      <div style={{ display: "flex", alignItems: "center", fontSize: 16 }}>
+                        <span style={{ width: 52, fontWeight: "bold", color: "#6b7280", flexShrink: 0 }}>{slot.time}</span>
+                        <span style={{ backgroundColor: colors.bg, color: colors.text, padding: "2px 8px", borderRadius: 4, fontSize: 13, marginRight: 8, flexShrink: 0 }}>
+                          {slot.classType}
+                        </span>
+                        <span style={{ color: "#059669", fontSize: 13, flexShrink: 0 }}>子{slot.childCount}名</span>
+                      </div>
+                      <div style={{ marginTop: 4, paddingLeft: 52, fontSize: 15, color: "#1f2937", fontWeight: 500 }}>
                         {assigned.length > 0 ? assigned.join("、") : "—"}
-                      </span>
+                      </div>
                     </div>
                   );
                 })}
