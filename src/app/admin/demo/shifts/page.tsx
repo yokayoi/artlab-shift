@@ -711,7 +711,13 @@ export default function DemoShiftsPage() {
 
       {/* 画像生成用の非表示シフト表 */}
       <div style={{ position: "absolute", left: "-9999px", top: 0 }}>
-        <div ref={shiftTableRef} style={{ width: 480, padding: "20px 16px", backgroundColor: "#fff", fontFamily: "sans-serif" }}>
+        <div ref={shiftTableRef} style={{ width: 120 + Math.max(...MOCK_DAYS.map((day) => {
+          const uids = new Set<string>();
+          day.slots.filter((s) => s.needsFacilitator && s.classType).forEach((slot) => {
+            (assignments[getSlotKey(day.date, slot.time)] || []).forEach((uid) => uids.add(uid));
+          });
+          return uids.size;
+        }), 1) * 120, padding: "20px 16px", backgroundColor: "#fff", fontFamily: "sans-serif" }}>
           <div style={{ textAlign: "center", marginBottom: 12 }}>
             <div style={{ fontSize: 18, fontWeight: "bold", color: "#1f2937" }}>4月 シフト表</div>
           </div>
