@@ -454,16 +454,22 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                 return slot.needsFacilitator && slot.classType && shift.assignments?.[key]?.includes(user?.uid || "");
               })
             );
-            if (myAssignedDays.length === 0) {
-              return !isAdmin ? (
+            const displayDays = myAssignedDays.length > 0 ? myAssignedDays
+              : isAdmin ? schedule.days.filter((day) => day.slots.some((s) => s.needsFacilitator && s.classType)) : [];
+            if (displayDays.length === 0) {
+              return (
                 <div className="mb-6 text-center py-4 text-sm text-gray-400 bg-white rounded-xl border border-gray-200">
                   今月のシフトは割り当てられていません
                 </div>
-              ) : null;
+              );
             }
+            const isDummy = myAssignedDays.length === 0 && isAdmin;
             return (
             <div className="mb-6 space-y-3">
-              {myAssignedDays.map((day) => {
+              {isDummy && (
+                <div className="text-center text-xs text-gray-400 mb-1">※ 管理者プレビュー（ファシリテーター視点）</div>
+              )}
+              {displayDays.map((day) => {
                 const dayKey = day.date;
                 const record = attendance?.records?.[dayKey];
                 const hasCheckIn = !!record?.checkIn;
@@ -482,7 +488,17 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                       <span className="text-sm text-gray-500 ml-2">{day.dayLabel}</span>
                     </div>
                     <div className="p-4">
-                      {!hasCheckIn ? (
+                      {isDummy ? (
+                        <div className="flex flex-col items-center py-2">
+                          <button
+                            disabled
+                            className="w-28 h-28 rounded-full bg-green-300 text-white font-bold text-base flex flex-col items-center justify-center opacity-60"
+                          >
+                            <span className="text-2xl mb-0.5">IN</span>
+                            <span className="text-xs opacity-90">チェックイン</span>
+                          </button>
+                        </div>
+                      ) : !hasCheckIn ? (
                         <div className="flex flex-col items-center py-2">
                           <div className="relative">
                             <button
