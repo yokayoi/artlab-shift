@@ -191,8 +191,43 @@ export default function ProfilePage() {
         {saving ? "保存中..." : saved ? "保存しました" : "保存する"}
       </button>
 
-      {/* Tier / Points */}
+      {/* LINE連携 */}
       <div className="mt-8 bg-white rounded-xl border border-gray-200 p-4">
+        <h2 className="font-medium text-gray-800 mb-3">LINE連携</h2>
+        <p className="text-xs text-gray-500 mb-4">
+          LINEアカウントを連携すると、シフト確定通知やリマインダーをLINEで受け取れます。
+        </p>
+        {profile.lineUserId ? (
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
+              <span className="text-sm text-gray-700">連携済み: {profile.lineDisplayName}</span>
+            </div>
+            <button
+              onClick={handleUnlinkLine}
+              disabled={lineUnlinking}
+              className="w-full py-2 rounded-lg text-sm font-medium text-red-600 bg-white border border-red-300 hover:bg-red-50 disabled:bg-gray-100 transition-colors"
+            >
+              {lineUnlinking ? "解除中..." : "LINE連携を解除"}
+            </button>
+          </div>
+        ) : (
+          <a
+            href={`/api/auth/line?uid=${user?.uid}`}
+            className="block w-full py-3 rounded-xl font-medium text-white bg-[#06C755] hover:bg-[#05b34c] text-center transition-colors"
+          >
+            LINEアカウントを連携する
+          </a>
+        )}
+        {lineMessage && (
+          <p className={`mt-2 text-xs ${lineMessage.type === "success" ? "text-green-600" : "text-red-600"}`}>
+            {lineMessage.text}
+          </p>
+        )}
+      </div>
+
+      {/* Tier / Points */}
+      <div className="mt-4 bg-white rounded-xl border border-gray-200 p-4">
         <h2 className="font-medium text-gray-800 mb-3">参加実績</h2>
         <div className="flex items-center gap-3 mb-3">
           <div className="text-3xl font-bold text-brand-700">{classCount}</div>
@@ -342,40 +377,6 @@ export default function ProfilePage() {
         </button>
       </div>
 
-      {/* LINE連携 */}
-      <div className="mt-4 bg-white rounded-xl border border-gray-200 p-4">
-        <h2 className="font-medium text-gray-800 mb-3">LINE連携</h2>
-        <p className="text-xs text-gray-500 mb-4">
-          LINEアカウントを連携すると、シフト確定通知やリマインダーをLINEで受け取れます。
-        </p>
-        {profile.lineUserId ? (
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
-              <span className="text-sm text-gray-700">連携済み: {profile.lineDisplayName}</span>
-            </div>
-            <button
-              onClick={handleUnlinkLine}
-              disabled={lineUnlinking}
-              className="w-full py-2 rounded-lg text-sm font-medium text-red-600 bg-white border border-red-300 hover:bg-red-50 disabled:bg-gray-100 transition-colors"
-            >
-              {lineUnlinking ? "解除中..." : "LINE連携を解除"}
-            </button>
-          </div>
-        ) : (
-          <a
-            href={`/api/auth/line?uid=${user?.uid}`}
-            className="block w-full py-3 rounded-xl font-medium text-white bg-[#06C755] hover:bg-[#05b34c] text-center transition-colors"
-          >
-            LINEアカウントを連携する
-          </a>
-        )}
-        {lineMessage && (
-          <p className={`mt-2 text-xs ${lineMessage.type === "success" ? "text-green-600" : "text-red-600"}`}>
-            {lineMessage.text}
-          </p>
-        )}
-      </div>
     </div>
   );
 }

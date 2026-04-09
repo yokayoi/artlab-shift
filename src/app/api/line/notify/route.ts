@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
-  const { monthId, type, message: customMessage } = await req.json();
+  const { monthId, type, message: customMessage, targetUids } = await req.json();
 
   if (!monthId) {
     return NextResponse.json({ error: "Missing monthId" }, { status: 400 });
@@ -54,9 +54,20 @@ export async function POST(req: NextRequest) {
   }
 
   if (type === "custom" && customMessage) {
-    // Get all users with LINE linked
-    const usersSnap = await db.collection("users").where("lineUserId", "!=", null).get();
-    const lineUserIds = usersSnap.docs.map((d) => d.data().lineUserId as string);
+    const lineUserIds: string[] = [];
+
+    if (targetUids && Array.isArray(targetUids) && targetUids.length > 0) {
+      // Send to specific users
+      for (const uid of targetUids) {
+        const userDoc = await db.collection("users").doc(uid).get();
+        const lineUserId = userDoc.data()?.lineUserId;
+        if (lineUserId) lineUserIds.push(lineUserId);
+      }
+    } else {
+      // Send to all LINE-linked users
+      const usersSnap = await db.collection("users").where("lineUserId", "!=", null).get();
+      usersSnap.docs.forEach((d) => lineUserIds.push(d.data().lineUserId as string));
+    }
 
     if (lineUserIds.length === 0) {
       return NextResponse.json({ message: "LINE連携済みのユーザーがいません", sent: 0, failed: 0 });
