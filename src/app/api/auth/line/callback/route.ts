@@ -8,12 +8,12 @@ export async function GET(req: NextRequest) {
   const error = req.nextUrl.searchParams.get("error");
 
   if (error || !code || !state) {
-    return NextResponse.redirect(new URL("/profile?line=error", req.url));
+    return NextResponse.redirect(new URL(`/profile?line=error&detail=params_missing_or_denied`, req.url));
   }
 
   const [uid] = state.split(":");
   if (!uid) {
-    return NextResponse.redirect(new URL("/profile?line=error", req.url));
+    return NextResponse.redirect(new URL(`/profile?line=error&detail=no_uid`, req.url));
   }
 
   try {
@@ -31,7 +31,9 @@ export async function GET(req: NextRequest) {
     });
 
     if (!tokenRes.ok) {
-      return NextResponse.redirect(new URL("/profile?line=error", req.url));
+      const errText = await tokenRes.text();
+      console.error("LINE token exchange failed:", tokenRes.status, errText);
+      return NextResponse.redirect(new URL(`/profile?line=error&detail=token_${tokenRes.status}`, req.url));
     }
 
     const tokenData = await tokenRes.json();
@@ -42,7 +44,7 @@ export async function GET(req: NextRequest) {
     });
 
     if (!profileRes.ok) {
-      return NextResponse.redirect(new URL("/profile?line=error", req.url));
+      return NextResponse.redirect(new URL(`/profile?line=error&detail=profile_${profileRes.status}`, req.url));
     }
 
     const lineProfile = await profileRes.json();
@@ -58,6 +60,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL("/profile?line=success", req.url));
   } catch (e) {
     console.error("LINE OAuth callback error:", e);
-    return NextResponse.redirect(new URL("/profile?line=error", req.url));
+    const msg = e instanceof Error ? e.message : "unknown";
+    return NextResponse.redirect(new URL(`/profile?line=error&detail=catch_${encodeURIComponent(msg.slice(0, 100))}`, req.url));
   }
 }

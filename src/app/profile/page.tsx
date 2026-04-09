@@ -39,7 +39,8 @@ export default function ProfilePage() {
       refreshProfile();
       window.history.replaceState({}, "", "/profile");
     } else if (lineResult === "error") {
-      setLineMessage({ type: "error", text: "LINE連携に失敗しました。もう一度お試しください。" });
+      const detail = params.get("detail") || "";
+      setLineMessage({ type: "error", text: `LINE連携に失敗しました。(${detail})` });
       window.history.replaceState({}, "", "/profile");
     }
   }, [refreshProfile]);
