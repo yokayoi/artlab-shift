@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
 import { User, onAuthStateChanged } from "firebase/auth";
 import { getFirebaseAuth } from "@/lib/firebase/config";
 import { getUser, createUser } from "@/lib/firebase/firestore";
@@ -11,6 +11,7 @@ interface AuthState {
   profile: UserProfile | null;
   isAdmin: boolean;
   loading: boolean;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState>({
@@ -18,15 +19,27 @@ const AuthContext = createContext<AuthState>({
   profile: null,
   isAdmin: false,
   loading: true,
+  refreshProfile: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AuthState>({
+  const [state, setState] = useState<Omit<AuthState, "refreshProfile">>({
     user: null,
     profile: null,
     isAdmin: false,
     loading: true,
   });
+
+  const refreshProfile = useCallback(async () => {
+    if (state.user) {
+      const profile = await getUser(state.user.uid);
+      setState((prev) => ({
+        ...prev,
+        profile,
+        isAdmin: profile?.role === "admin",
+      }));
+    }
+  }, [state.user]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(getFirebaseAuth(), async (user) => {
@@ -54,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  return <AuthContext.Provider value={state}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ ...state, refreshProfile }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

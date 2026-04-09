@@ -125,6 +125,9 @@ export default function AdminPage() {
           <Link href="/admin/users" className="text-sm text-brand-600 hover:text-brand-800">
             ユーザー管理
           </Link>
+          <Link href="/admin/line" className="text-sm text-[#06C755] hover:text-[#05b34c]">
+            LINE通知
+          </Link>
         </div>
       </div>
 

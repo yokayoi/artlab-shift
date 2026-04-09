@@ -9,7 +9,7 @@ import { getTier, getNextTier, isTraining, TRAINING_MAX, TRAINING_HOURLY_RATE, g
 import { BankAccount } from "@/lib/types";
 
 export default function ProfilePage() {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, refreshProfile } = useAuth();
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [nickname, setNickname] = useState("");
@@ -24,10 +24,25 @@ export default function ProfilePage() {
   const [accountHolder, setAccountHolder] = useState("");
   const [bankSaving, setBankSaving] = useState(false);
   const [bankSaved, setBankSaved] = useState(false);
+  const [lineUnlinking, setLineUnlinking] = useState(false);
+  const [lineMessage, setLineMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
     if (!loading && !user) router.push("/login");
   }, [user, loading, router]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const lineResult = params.get("line");
+    if (lineResult === "success") {
+      setLineMessage({ type: "success", text: "LINE連携が完了しました" });
+      refreshProfile();
+      window.history.replaceState({}, "", "/profile");
+    } else if (lineResult === "error") {
+      setLineMessage({ type: "error", text: "LINE連携に失敗しました。もう一度お試しください。" });
+      window.history.replaceState({}, "", "/profile");
+    }
+  }, [refreshProfile]);
 
   useEffect(() => {
     if (profile) {
@@ -59,6 +74,27 @@ export default function ProfilePage() {
     setBankSaving(false);
     setBankSaved(true);
     setTimeout(() => setBankSaved(false), 2000);
+  };
+
+  const handleUnlinkLine = async () => {
+    if (!user || !confirm("LINE連携を解除しますか？通知が届かなくなります。")) return;
+    setLineUnlinking(true);
+    try {
+      const { getAuth } = await import("firebase/auth");
+      const idToken = await getAuth().currentUser?.getIdToken();
+      await fetch("/api/auth/line/unlink", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+      });
+      setLineMessage({ type: "success", text: "LINE連携を解除しました" });
+      await refreshProfile();
+    } catch {
+      setLineMessage({ type: "error", text: "解除に失敗しました" });
+    }
+    setLineUnlinking(false);
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -303,6 +339,41 @@ export default function ProfilePage() {
         >
           {bankSaving ? "保存中..." : bankSaved ? "保存しました" : "口座情報を保存"}
         </button>
+      </div>
+
+      {/* LINE連携 */}
+      <div className="mt-4 bg-white rounded-xl border border-gray-200 p-4">
+        <h2 className="font-medium text-gray-800 mb-3">LINE連携</h2>
+        <p className="text-xs text-gray-500 mb-4">
+          LINEアカウントを連携すると、シフト確定通知やリマインダーをLINEで受け取れます。
+        </p>
+        {profile.lineUserId ? (
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
+              <span className="text-sm text-gray-700">連携済み: {profile.lineDisplayName}</span>
+            </div>
+            <button
+              onClick={handleUnlinkLine}
+              disabled={lineUnlinking}
+              className="w-full py-2 rounded-lg text-sm font-medium text-red-600 bg-white border border-red-300 hover:bg-red-50 disabled:bg-gray-100 transition-colors"
+            >
+              {lineUnlinking ? "解除中..." : "LINE連携を解除"}
+            </button>
+          </div>
+        ) : (
+          <a
+            href={`/api/auth/line?uid=${user?.uid}`}
+            className="block w-full py-3 rounded-xl font-medium text-white bg-[#06C755] hover:bg-[#05b34c] text-center transition-colors"
+          >
+            LINEアカウントを連携する
+          </a>
+        )}
+        {lineMessage && (
+          <p className={`mt-2 text-xs ${lineMessage.type === "success" ? "text-green-600" : "text-red-600"}`}>
+            {lineMessage.text}
+          </p>
+        )}
       </div>
     </div>
   );

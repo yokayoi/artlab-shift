@@ -4,6 +4,7 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
   collection,
   query,
   where,
@@ -79,6 +80,24 @@ export async function getFacilitators(): Promise<UserProfile[]> {
   const q = query(collection(getFirebaseDb(), "users"), where("role", "==", "facilitator"));
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ uid: d.id, ...d.data() } as UserProfile));
+}
+
+// ===== LINE Linking =====
+
+export async function linkLineAccount(uid: string, lineUserId: string, lineDisplayName: string) {
+  await updateDoc(doc(getFirebaseDb(), "users", uid), {
+    lineUserId,
+    lineDisplayName,
+    updatedAt: Timestamp.now(),
+  });
+}
+
+export async function unlinkLineAccount(uid: string) {
+  await updateDoc(doc(getFirebaseDb(), "users", uid), {
+    lineUserId: deleteField(),
+    lineDisplayName: deleteField(),
+    updatedAt: Timestamp.now(),
+  });
 }
 
 // ===== Schedules =====

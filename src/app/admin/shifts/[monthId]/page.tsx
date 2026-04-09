@@ -37,6 +37,8 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
   const [copied, setCopied] = useState(false);
   const [shiftImageUrl, setShiftImageUrl] = useState<string | null>(null);
   const [generatingImage, setGeneratingImage] = useState(false);
+  const [lineSending, setLineSending] = useState(false);
+  const [lineSent, setLineSent] = useState<{ sent: number; failed: number } | null>(null);
   const shiftTableRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -208,6 +210,46 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
     await updateScheduleStatus(monthId, "published");
     setSaving(false);
     setCompleted("published");
+
+    // LINE通知を自動送信
+    try {
+      const { getAuth } = await import("firebase/auth");
+      const idToken = await getAuth().currentUser?.getIdToken();
+      const res = await fetch("/api/line/notify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ monthId, type: "publish" }),
+      });
+      const data = await res.json();
+      setLineSent({ sent: data.sent || 0, failed: data.failed || 0 });
+    } catch {
+      console.error("LINE notification failed");
+    }
+  };
+
+  const handleResendLine = async () => {
+    if (!user) return;
+    setLineSending(true);
+    try {
+      const { getAuth } = await import("firebase/auth");
+      const idToken = await getAuth().currentUser?.getIdToken();
+      const res = await fetch("/api/line/notify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ monthId, type: "publish" }),
+      });
+      const data = await res.json();
+      setLineSent({ sent: data.sent || 0, failed: data.failed || 0 });
+    } catch {
+      console.error("LINE resend failed");
+    }
+    setLineSending(false);
   };
 
   const generateImage = async () => {
@@ -803,6 +845,23 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
           <div className="px-4 py-4 bg-green-50 border border-green-200 rounded-xl">
             <p className="text-sm text-green-800 font-medium">シフトを公開しました</p>
           </div>
+
+          {/* LINE通知ステータス */}
+          {lineSent && (
+            <div className={`px-4 py-3 rounded-xl text-sm ${
+              lineSent.failed === 0 ? "bg-blue-50 border border-blue-200 text-blue-800" : "bg-amber-50 border border-amber-200 text-amber-800"
+            }`}>
+              LINE通知: {lineSent.sent}名に送信{lineSent.failed > 0 ? `（${lineSent.failed}名失敗）` : "しました"}
+            </div>
+          )}
+
+          <button
+            onClick={handleResendLine}
+            disabled={lineSending}
+            className="px-4 py-2 text-sm font-medium text-white bg-[#06C755] rounded-lg hover:bg-[#05b34c] disabled:bg-gray-300 transition-colors"
+          >
+            {lineSending ? "送信中..." : "LINE通知を再送信"}
+          </button>
 
           {/* シフト表画像保存 */}
           <div className="flex gap-2">

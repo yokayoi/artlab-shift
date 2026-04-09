@@ -23,6 +23,8 @@ export interface UserProfile {
   transportCost?: number;
   classCount?: number;
   bankAccount?: BankAccount;
+  lineUserId?: string;
+  lineDisplayName?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
