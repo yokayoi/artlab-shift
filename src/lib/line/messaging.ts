@@ -3,7 +3,7 @@ const LINE_API_BASE = "https://api.line.me/v2/bot";
 export async function sendLinePushMessage(
   lineUserIds: string[],
   message: string
-): Promise<{ sentTo: string[]; failed: string[] }> {
+): Promise<{ sentTo: string[]; failed: string[]; error?: string }> {
   const token = process.env.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN;
   if (!token) {
     console.error("LINE_MESSAGING_CHANNEL_ACCESS_TOKEN is not set");
@@ -32,8 +32,9 @@ export async function sendLinePushMessage(
     }
 
     const errBody = await res.json().catch(() => ({}));
-    console.error("LINE multicast error:", errBody);
-    return { sentTo: [], failed: lineUserIds };
+    console.error("LINE multicast error:", res.status, JSON.stringify(errBody));
+    console.error("LINE multicast request - to:", lineUserIds, "token length:", token.length, "token start:", token.slice(0, 10));
+    return { sentTo: [], failed: lineUserIds, error: `${res.status}: ${JSON.stringify(errBody)}` };
   } catch (e) {
     console.error("LINE multicast exception:", e);
     return { sentTo: [], failed: lineUserIds };

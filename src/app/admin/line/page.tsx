@@ -11,7 +11,7 @@ export default function AdminLinePage() {
   const router = useRouter();
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
-  const [result, setResult] = useState<{ sent: number; failed: number } | null>(null);
+  const [result, setResult] = useState<{ sent: number; failed: number; debug?: unknown } | null>(null);
   const [lineUsers, setLineUsers] = useState<UserProfile[]>([]);
   const [selectedUids, setSelectedUids] = useState<Set<string>>(new Set());
   const [sendMode, setSendMode] = useState<"all" | "selected">("all");
@@ -70,7 +70,7 @@ export default function AdminLinePage() {
         body: JSON.stringify(body),
       });
       const data = await res.json();
-      setResult({ sent: data.sent || 0, failed: data.failed || 0 });
+      setResult({ sent: data.sent || 0, failed: data.failed || 0, debug: data.debug });
       if (data.sent > 0) setMessage("");
     } catch {
       setResult({ sent: 0, failed: -1 });
@@ -176,6 +176,11 @@ export default function AdminLinePage() {
                 : "LINE連携済みのユーザーがいません"}
             {result.failed > 0 && `（${result.failed}名失敗）`}
           </p>
+          {result.debug && (
+            <pre className="mt-2 text-xs text-gray-500 bg-gray-50 p-2 rounded overflow-x-auto">
+              {JSON.stringify(result.debug, null, 2)}
+            </pre>
+          )}
         )}
       </div>
     </div>

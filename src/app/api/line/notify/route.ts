@@ -73,11 +73,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "LINE連携済みのユーザーがいません", sent: 0, failed: 0 });
     }
 
+    console.log("LINE notify - sending to lineUserIds:", lineUserIds);
     const result = await sendLinePushMessage(lineUserIds, customMessage);
     return NextResponse.json({
       message: `${result.sentTo.length}名に送信しました`,
       sent: result.sentTo.length,
       failed: result.failed.length,
+      debug: { lineUserIds, error: result.error },
     });
   }
 
