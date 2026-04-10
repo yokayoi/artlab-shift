@@ -10,6 +10,23 @@ import { CLASS_TYPE_COLORS, STATUS_LABELS, CLASS_DURATION_MINUTES, TRAINING_MAX,
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 
+const ART_SCHOOL_IMAGES = [
+  "/art_school/art_school_woodwork@2x.webp",
+  "/art_school/art_school_textile@2x.webp",
+  "/art_school/art_school_animation@2x.webp",
+  "/art_school/art_school_painting@2x.webp",
+  "/art_school/art_school_pottery@2x.webp",
+  "/art_school/art_school_history@2x.webp",
+  "/art_school/art_school_calligraphy@2x.webp",
+  "/art_school/art_school_digital@2x.webp",
+  "/art_school/art_school_printmaking@2x.webp",
+  "/art_school/art_school_sculpture@2x.webp",
+  "/art_school/art_school_drawing@2x.webp",
+  "/art_school/art_school_storage@2x.webp",
+  "/art_school/art_school_gallery@2x.webp",
+  "/art_school/art_school_darkroom@2x.webp",
+];
+
 export default function FacilitatorSchedulePage({ params }: { params: Promise<{ monthId: string }> }) {
   const { monthId } = use(params);
   const { user, profile, isAdmin, loading } = useAuth();
@@ -27,6 +44,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
   const [checkingIn, setCheckingIn] = useState<string | null>(null);
   const [animationModal, setAnimationModal] = useState<{ type: "checkin" | "checkout"; message: string } | null>(null);
   const [sparkleKey, setSparkleKey] = useState<string | null>(null);
+  const [artSchoolImage] = useState<string>(() => ART_SCHOOL_IMAGES[Math.floor(Math.random() * ART_SCHOOL_IMAGES.length)]);
   const [allAvailabilities, setAllAvailabilities] = useState<Availability[]>([]);
   const [adminUids, setAdminUids] = useState<Set<string>>(new Set());
   const shiftImageRef = useRef<HTMLDivElement>(null);
@@ -255,7 +273,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6">
+    <div className="max-w-2xl mx-auto px-4 pt-6 pb-9">
       {/* Calendar & Demo Link */}
       <div className="flex justify-end gap-2 mb-2">
         {!isDemo && (
@@ -278,6 +296,14 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
         >
           使い方
         </button>
+        <a
+          href="http://creative.artdesignlab.jp"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-gray-600 bg-white border border-gray-300 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors"
+        >
+          クリエイティブノート
+        </a>
       </div>
 
       {/* Demo Guide */}
@@ -331,7 +357,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
       )}
 
       {/* Month Navigation */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mt-9 mb-6">
         {isFirstMonth ? (
           <div className="p-2 w-8" />
         ) : (
@@ -363,161 +389,6 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
         </div>
       ) : (
         <>
-          {/* シフト表（トップ表示） */}
-          {shift && (() => {
-            return (
-              <div className="mb-6 max-w-[640px] mx-auto bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-                  <h3 className="text-sm font-bold text-gray-700">{month}月 シフト表</h3>
-                </div>
-                <div className="px-4 pt-3 pb-1 flex gap-4 text-xs text-gray-500">
-                  {["カリキュラム", "オーダーメイド"].map((type) => {
-                    const c = CLASS_TYPE_COLORS[type];
-                    return (
-                      <span key={type} className="flex items-center gap-1">
-                        <span className="inline-block px-1.5 py-0.5 rounded text-[11px] font-medium" style={{ backgroundColor: c.bg, color: c.text }}>{type}</span>
-                      </span>
-                    );
-                  })}
-                </div>
-                <div className="p-4 pt-2 space-y-4 overflow-x-auto">
-                  {schedule.days.map((day) => {
-                    const activeSlots = day.slots.filter((s) => s.needsFacilitator && s.classType);
-                    if (activeSlots.length === 0) return null;
-                    const dayFacUids: string[] = [];
-                    activeSlots.forEach((slot) => {
-                      (shift.assignments?.[getSlotKey(day.date, slot.time)] || []).forEach((uid) => {
-                        if (!dayFacUids.includes(uid)) dayFacUids.push(uid);
-                      });
-                    });
-                    const facCells: Record<string, { show: boolean; rowSpan: number; assigned: boolean }[]> = {};
-                    dayFacUids.forEach((uid) => {
-                      const cells: { show: boolean; rowSpan: number; assigned: boolean }[] = [];
-                      let i = 0;
-                      while (i < activeSlots.length) {
-                        const k = getSlotKey(day.date, activeSlots[i].time);
-                        if ((shift.assignments?.[k] || []).includes(uid)) {
-                          let span = 1;
-                          while (i + span < activeSlots.length) {
-                            const nk = getSlotKey(day.date, activeSlots[i + span].time);
-                            if ((shift.assignments?.[nk] || []).includes(uid)) span++;
-                            else break;
-                          }
-                          cells.push({ show: true, rowSpan: span, assigned: true });
-                          for (let j = 1; j < span; j++) cells.push({ show: false, rowSpan: 0, assigned: true });
-                          i += span;
-                        } else {
-                          cells.push({ show: true, rowSpan: 1, assigned: false });
-                          i++;
-                        }
-                      }
-                      facCells[uid] = cells;
-                    });
-                    const facNameMap: Record<string, string> = {};
-                    activeSlots.forEach((slot) => {
-                      const k = getSlotKey(day.date, slot.time);
-                      const uids = shift.assignments?.[k] || [];
-                      const names = shift.assignmentNames?.[k] || [];
-                      uids.forEach((uid, i) => { if (!facNameMap[uid]) facNameMap[uid] = names[i] || uid; });
-                    });
-                    return (
-                      <div key={day.date}>
-                        <div className="bg-gray-100 px-3 py-1.5 rounded-md mb-1">
-                          <span className="text-sm font-bold text-gray-700">{formatDateShort(day.date)}</span>
-                        </div>
-                        <table className="w-full border-collapse">
-                          <tbody>
-                            {activeSlots.map((slot, slotIdx) => {
-                              const key = getSlotKey(day.date, slot.time);
-                              const colors = CLASS_TYPE_COLORS[slot.classType!];
-                              const assignedCount = (shift.assignments?.[key] || []).length;
-                              const required = getRequiredFacilitators(slot.childCount);
-                              const isShort = required > 0 && assignedCount < required;
-                              return (
-                                <tr key={key}>
-                                  <td className="border border-gray-200 px-2 py-2 align-top w-20 text-left">
-                                    <div className="flex items-center gap-1.5">
-                                      <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: colors.bg, border: `2px solid ${colors.border}` }} />
-                                      <span className="font-bold text-gray-600 text-sm max-sm:text-xs">{slot.time}</span>
-                                    </div>
-                                    {slot.childCount && (
-                                      <div className="text-sm max-sm:text-xs font-bold text-green-600 mt-0.5">子{slot.childCount}名</div>
-                                    )}
-                                    {isShort && (
-                                      <div className="text-[11px] max-sm:text-[10px] text-red-600 font-bold mt-0.5">⚠ あと{required - assignedCount}名</div>
-                                    )}
-                                  </td>
-                                  {dayFacUids.map((uid) => {
-                                    const cell = facCells[uid][slotIdx];
-                                    if (!cell.show) return null;
-                                    const isMeUid = uid === user?.uid;
-                                    return (
-                                      <td
-                                        key={uid}
-                                        rowSpan={cell.rowSpan}
-                                        className={`border border-gray-200 px-2 py-2 text-center text-sm max-sm:text-xs font-medium align-middle ${
-                                          cell.assigned
-                                            ? isMeUid ? "bg-brand-100 text-brand-700" : "bg-brand-50 text-gray-700"
-                                            : ""
-                                        }`}
-                                      >
-                                        {cell.assigned ? <>{facNameMap[uid]}<br /><span className="text-xs max-sm:text-[10px]">さん</span></> : ""}
-                                      </td>
-                                    );
-                                  })}
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="px-4 py-4 bg-white border-t border-gray-200 space-y-1">
-                  <p className="text-sm font-bold text-red-600">⚠️ 変更の際はLINEにてご連絡ください</p>
-                  <p className="text-xs font-bold text-red-600">人数不足の時間帯に入れる方も、お気軽にご連絡ください</p>
-                </div>
-                {/* 給与見込み */}
-                {profile && (() => {
-                  const mySlots = Object.entries(shift.assignments)
-                    .filter(([, uids]) => uids.includes(user?.uid || ""))
-                    .map(([key]) => key);
-                  const classCount = profile.classCount || 0;
-                  const effectiveRate = getEffectiveRate(classCount, profile.hourlyRate || 0);
-                  const scheduledMinutes = mySlots.length * CLASS_DURATION_MINUTES;
-                  const classPay = Math.round(effectiveRate * (scheduledMinutes / 60));
-                  const transportCost = profile.transportCost || 0;
-                  const totalPay = classPay + (mySlots.length > 0 ? transportCost : 0);
-                  if (mySlots.length === 0 || effectiveRate === 0) return null;
-                  return (
-                    <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-500">今月の給与（見込み）</span>
-                        <span className="text-base font-bold text-brand-700">¥{totalPay.toLocaleString()}</span>
-                      </div>
-                      <div className="text-[11px] text-gray-400 mt-0.5">{mySlots.length}コマ × 時給¥{effectiveRate.toLocaleString()}{transportCost > 0 ? ` + 交通費¥${transportCost.toLocaleString()}` : ""}</div>
-                    </div>
-                  );
-                })()}
-                <div className="px-4 py-3 border-t border-gray-100 flex gap-2">
-                  <button
-                    onClick={downloadShiftImage}
-                    className="px-3 py-1.5 text-xs font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700"
-                  >
-                    画像を保存
-                  </button>
-                  <button
-                    onClick={downloadShiftPdf}
-                    className="px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
-                  >
-                    PDFを保存
-                  </button>
-                </div>
-              </div>
-            );
-          })()}
-
           {/* チェックイン・チェックアウト（シフト作成後） */}
           {shift && (() => {
             const myAssignedDays = schedule.days.filter((day) =>
@@ -697,6 +568,161 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                 );
               })}
             </div>
+            );
+          })()}
+
+          {/* シフト表（トップ表示） */}
+          {shift && (() => {
+            return (
+              <div className="mb-6 max-w-[640px] mx-auto bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+                  <h3 className="text-sm font-bold text-gray-700">{month}月 シフト表</h3>
+                </div>
+                <div className="px-4 pt-3 pb-1 flex gap-4 text-xs text-gray-500">
+                  {["カリキュラム", "オーダーメイド"].map((type) => {
+                    const c = CLASS_TYPE_COLORS[type];
+                    return (
+                      <span key={type} className="flex items-center gap-1">
+                        <span className="inline-block px-1.5 py-0.5 rounded text-[11px] font-medium" style={{ backgroundColor: c.bg, color: c.text }}>{type}</span>
+                      </span>
+                    );
+                  })}
+                </div>
+                <div className="p-4 pt-2 space-y-4 overflow-x-auto">
+                  {schedule.days.map((day) => {
+                    const activeSlots = day.slots.filter((s) => s.needsFacilitator && s.classType);
+                    if (activeSlots.length === 0) return null;
+                    const dayFacUids: string[] = [];
+                    activeSlots.forEach((slot) => {
+                      (shift.assignments?.[getSlotKey(day.date, slot.time)] || []).forEach((uid) => {
+                        if (!dayFacUids.includes(uid)) dayFacUids.push(uid);
+                      });
+                    });
+                    const facCells: Record<string, { show: boolean; rowSpan: number; assigned: boolean }[]> = {};
+                    dayFacUids.forEach((uid) => {
+                      const cells: { show: boolean; rowSpan: number; assigned: boolean }[] = [];
+                      let i = 0;
+                      while (i < activeSlots.length) {
+                        const k = getSlotKey(day.date, activeSlots[i].time);
+                        if ((shift.assignments?.[k] || []).includes(uid)) {
+                          let span = 1;
+                          while (i + span < activeSlots.length) {
+                            const nk = getSlotKey(day.date, activeSlots[i + span].time);
+                            if ((shift.assignments?.[nk] || []).includes(uid)) span++;
+                            else break;
+                          }
+                          cells.push({ show: true, rowSpan: span, assigned: true });
+                          for (let j = 1; j < span; j++) cells.push({ show: false, rowSpan: 0, assigned: true });
+                          i += span;
+                        } else {
+                          cells.push({ show: true, rowSpan: 1, assigned: false });
+                          i++;
+                        }
+                      }
+                      facCells[uid] = cells;
+                    });
+                    const facNameMap: Record<string, string> = {};
+                    activeSlots.forEach((slot) => {
+                      const k = getSlotKey(day.date, slot.time);
+                      const uids = shift.assignments?.[k] || [];
+                      const names = shift.assignmentNames?.[k] || [];
+                      uids.forEach((uid, i) => { if (!facNameMap[uid]) facNameMap[uid] = names[i] || uid; });
+                    });
+                    return (
+                      <div key={day.date}>
+                        <div className="bg-gray-100 px-3 py-1.5 rounded-md mb-1">
+                          <span className="text-sm font-bold text-gray-700">{formatDateShort(day.date)}</span>
+                        </div>
+                        <table className="w-full border-collapse">
+                          <tbody>
+                            {activeSlots.map((slot, slotIdx) => {
+                              const key = getSlotKey(day.date, slot.time);
+                              const colors = CLASS_TYPE_COLORS[slot.classType!];
+                              const assignedCount = (shift.assignments?.[key] || []).length;
+                              const required = getRequiredFacilitators(slot.childCount);
+                              const isShort = required > 0 && assignedCount < required;
+                              return (
+                                <tr key={key}>
+                                  <td className="border border-gray-200 px-2 py-2 align-top w-20 text-left">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: colors.bg, border: `2px solid ${colors.border}` }} />
+                                      <span className="font-bold text-gray-600 text-sm max-sm:text-xs">{slot.time}</span>
+                                    </div>
+                                    {slot.childCount && (
+                                      <div className="text-sm max-sm:text-xs font-bold text-green-600 mt-0.5">子{slot.childCount}名</div>
+                                    )}
+                                    {isShort && (
+                                      <div className="text-[11px] max-sm:text-[10px] text-red-600 font-bold mt-0.5">⚠ あと{required - assignedCount}名</div>
+                                    )}
+                                  </td>
+                                  {dayFacUids.map((uid) => {
+                                    const cell = facCells[uid][slotIdx];
+                                    if (!cell.show) return null;
+                                    const isMeUid = uid === user?.uid;
+                                    return (
+                                      <td
+                                        key={uid}
+                                        rowSpan={cell.rowSpan}
+                                        className={`border border-gray-200 px-2 py-2 text-center text-sm max-sm:text-xs font-medium align-middle ${
+                                          cell.assigned
+                                            ? isMeUid ? "bg-brand-100 text-brand-700" : "bg-brand-50 text-gray-700"
+                                            : ""
+                                        }`}
+                                      >
+                                        {cell.assigned ? <>{facNameMap[uid]}<br /><span className="text-xs max-sm:text-[10px]">さん</span></> : ""}
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="px-4 py-4 bg-white border-t border-gray-200 space-y-1">
+                  <p className="text-sm font-bold text-red-600">⚠️ 変更の際はLINEにてご連絡ください</p>
+                  <p className="text-xs font-bold text-red-600">人数不足の時間帯に入れる方も、お気軽にご連絡ください</p>
+                </div>
+                {/* 給与見込み */}
+                {profile && (() => {
+                  const mySlots = Object.entries(shift.assignments)
+                    .filter(([, uids]) => uids.includes(user?.uid || ""))
+                    .map(([key]) => key);
+                  const classCount = profile.classCount || 0;
+                  const effectiveRate = getEffectiveRate(classCount, profile.hourlyRate || 0);
+                  const scheduledMinutes = mySlots.length * CLASS_DURATION_MINUTES;
+                  const classPay = Math.round(effectiveRate * (scheduledMinutes / 60));
+                  const transportCost = profile.transportCost || 0;
+                  const totalPay = classPay + (mySlots.length > 0 ? transportCost : 0);
+                  if (mySlots.length === 0 || effectiveRate === 0) return null;
+                  return (
+                    <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">今月の給与（見込み）</span>
+                        <span className="text-base font-bold text-brand-700">¥{totalPay.toLocaleString()}</span>
+                      </div>
+                      <div className="text-[11px] text-gray-400 mt-0.5">{mySlots.length}コマ × 時給¥{effectiveRate.toLocaleString()}{transportCost > 0 ? ` + 交通費¥${transportCost.toLocaleString()}` : ""}</div>
+                    </div>
+                  );
+                })()}
+                <div className="px-4 py-3 border-t border-gray-100 flex gap-2">
+                  <button
+                    onClick={downloadShiftImage}
+                    className="px-3 py-1.5 text-xs font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700"
+                  >
+                    画像を保存
+                  </button>
+                  <button
+                    onClick={downloadShiftPdf}
+                    className="px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
+                  >
+                    PDFを保存
+                  </button>
+                </div>
+              </div>
             );
           })()}
 
@@ -1053,50 +1079,6 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
         </>
       )}
 
-      {/* クリエイティブノート */}
-      <a
-        href="http://creative.artdesignlab.jp"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="mt-8 flex items-center gap-3 bg-white rounded-xl border border-gray-200 p-4 hover:bg-brand-50 hover:border-brand-200 transition-colors"
-      >
-        <span className="text-brand-600 shrink-0">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-        </span>
-        <div>
-          <div className="text-sm font-medium text-gray-800">クリエイティブノート</div>
-          <div className="text-xs text-gray-500">creative.artdesignlab.jp</div>
-        </div>
-      </a>
-
-      {/* ファシリテーターガイドライン */}
-      <div className="mt-8 bg-white rounded-xl border border-gray-200 p-4">
-        <h2 className="font-medium text-gray-800 mb-3">ファシリテーターガイドライン</h2>
-        <div className="grid grid-cols-2 gap-2">
-          {[
-            { title: "アートデザインラボについて", url: "https://docs.google.com/presentation/d/1v4oo_HjM9oIXgB9JH0wSQ86k7C2Lf25MzayfkahYib4/edit?usp=sharing" },
-            { title: "ファシリテーション&レビュー方法", url: "https://docs.google.com/presentation/d/1TdIsjPcKPR6NsP6vc2mv13p8ZfmGxuODobnBWOtRNXM/edit?usp=sharing" },
-            { title: "作品、道具、素材の扱い方", url: "https://docs.google.com/presentation/d/1Y_7XEnLeQ79se5FBDFilL4AubNdA-tQn2k3lrA_GeiI/edit?usp=sharing" },
-            { title: "時給&シフト管理", url: "https://docs.google.com/presentation/d/1IyTND2hSQ4IAyxW8EHe5DMlT5KLOs2OjF46Hr2ZbFLE/edit?usp=sharing" },
-            { title: "緊急対応", url: "https://docs.google.com/presentation/d/1SsEa1Y5HfbO_KYxyVyXLqD9kzPA21jehXEkF14f66PY/edit?usp=sharing" },
-            { title: "保護者アンケート", url: "https://docs.google.com/presentation/d/16wXORXZtBSdz7SvjVtYOtJsgqwEg7fguYeZP8wQTi1I/edit?usp=sharing" },
-          ].map((doc) => (
-            <a
-              key={doc.url}
-              href={doc.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 rounded-lg border border-gray-100 hover:bg-brand-50 hover:border-brand-200 transition-colors"
-            >
-              <span className="text-brand-600 shrink-0">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-              </span>
-              <span className="text-xs font-medium text-gray-700 leading-tight">{doc.title}</span>
-            </a>
-          ))}
-        </div>
-      </div>
-
       {/* AI-SATO-β から一言 */}
       {profile && (
         <div className="mt-8 bg-pink-50 rounded-xl border border-pink-200 p-4">
@@ -1123,6 +1105,14 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
         return (
           <div className="mt-4 bg-white rounded-xl border border-gray-200 p-4">
             <h2 className="font-medium text-gray-800 mb-3">参加実績</h2>
+            <div className="mb-3 flex justify-center">
+              <img
+                src={artSchoolImage}
+                alt="アートスクール"
+                className="h-auto block"
+                style={{ width: "60%", imageRendering: "pixelated" }}
+              />
+            </div>
             <div className="flex items-center gap-3 mb-3">
               <div className="text-3xl font-bold text-brand-700">{classCount}</div>
               <div className="text-sm text-gray-500">クラス参加</div>
@@ -1268,6 +1258,33 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
         );
       })()}
 
+      {/* ファシリテーターガイドライン */}
+      <div className="mt-8 bg-white rounded-xl border border-gray-200 p-4">
+        <h2 className="font-medium text-gray-800 mb-3">ファシリテーターガイドライン</h2>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { title: "アートデザインラボについて", url: "https://docs.google.com/presentation/d/1v4oo_HjM9oIXgB9JH0wSQ86k7C2Lf25MzayfkahYib4/edit?usp=sharing" },
+            { title: "ファシリテーション&レビュー方法", url: "https://docs.google.com/presentation/d/1TdIsjPcKPR6NsP6vc2mv13p8ZfmGxuODobnBWOtRNXM/edit?usp=sharing" },
+            { title: "作品、道具、素材の扱い方", url: "https://docs.google.com/presentation/d/1Y_7XEnLeQ79se5FBDFilL4AubNdA-tQn2k3lrA_GeiI/edit?usp=sharing" },
+            { title: "時給&シフト管理", url: "https://docs.google.com/presentation/d/1IyTND2hSQ4IAyxW8EHe5DMlT5KLOs2OjF46Hr2ZbFLE/edit?usp=sharing" },
+            { title: "緊急対応", url: "https://docs.google.com/presentation/d/1SsEa1Y5HfbO_KYxyVyXLqD9kzPA21jehXEkF14f66PY/edit?usp=sharing" },
+            { title: "保護者アンケート", url: "https://docs.google.com/presentation/d/16wXORXZtBSdz7SvjVtYOtJsgqwEg7fguYeZP8wQTi1I/edit?usp=sharing" },
+          ].map((doc) => (
+            <a
+              key={doc.url}
+              href={doc.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 rounded-lg border border-gray-100 hover:bg-brand-50 hover:border-brand-200 transition-colors"
+            >
+              <span className="text-brand-600 shrink-0">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+              </span>
+              <span className="text-xs font-medium text-gray-700 leading-tight">{doc.title}</span>
+            </a>
+          ))}
+        </div>
+      </div>
       {/* AI-SATO-β Animation Modal */}
       {animationModal && (
         <div
