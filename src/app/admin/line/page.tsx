@@ -168,19 +168,21 @@ export default function AdminLinePage() {
               : `${selectedUids.size}名に送信`}
         </button>
         {result && (
-          <p className={`mt-3 text-sm ${result.failed <= 0 ? "text-green-600" : "text-amber-600"}`}>
-            {result.sent > 0
-              ? `${result.sent}名に送信しました`
-              : result.failed === -1
-                ? "送信に失敗しました"
-                : "LINE連携済みのユーザーがいません"}
-            {result.failed > 0 && `（${result.failed}名失敗）`}
-          </p>
-          {result.debug && (
-            <pre className="mt-2 text-xs text-gray-500 bg-gray-50 p-2 rounded overflow-x-auto">
-              {JSON.stringify(result.debug, null, 2)}
-            </pre>
-          )}
+          <>
+            <p className={`mt-3 text-sm ${result.failed <= 0 ? "text-green-600" : "text-amber-600"}`}>
+              {result.sent > 0
+                ? `${result.sent}名に送信しました`
+                : result.failed === -1
+                  ? "送信に失敗しました"
+                  : "LINE連携済みのユーザーがいません"}
+              {result.failed > 0 && `（${result.failed}名失敗）`}
+            </p>
+            {result.debug && (
+              <pre className="mt-2 text-xs text-gray-500 bg-gray-50 p-2 rounded overflow-x-auto">
+                {JSON.stringify(result.debug, null, 2)}
+              </pre>
+            )}
+          </>
         )}
       </div>
     </div>
