@@ -440,7 +440,7 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
       <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
         <table className="w-full text-sm table-fixed">
           <thead>
-            <tr className="border-b border-gray-200">
+            <tr className="border-b border-gray-300">
               <th className="text-left px-3 py-2 font-medium text-gray-600 sticky left-0 bg-white w-[90px]">日付</th>
               <th className="text-left px-2 py-2 font-medium text-gray-600 w-[60px]">時間</th>
               <th className="px-2 py-2 font-medium text-gray-500 text-center whitespace-nowrap w-[64px] text-xs">子ども</th>
@@ -460,11 +460,11 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
               const isFirst = !dateFirstRow.has(sk.date);
               if (isFirst) dateFirstRow.add(sk.date);
               return [
-                <tr key={sk.key} className="border-b border-gray-50">
+                <tr key={sk.key} className="border-b border-gray-200">
                   {isFirst && (
                     <td
                       rowSpan={dateRowSpans[sk.date]}
-                      className="px-3 py-2 text-gray-700 sticky left-0 bg-white whitespace-nowrap text-xs font-medium align-middle border-r border-gray-100"
+                      className="px-3 py-2 text-gray-700 sticky left-0 bg-white whitespace-nowrap text-xs font-medium align-middle border-r border-gray-300"
                     >
                       {sk.dateLabel}
                     </td>
@@ -528,7 +528,7 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
                     );
                   })}
                 </tr>,
-                <tr key={`${sk.key}-note`} className="border-b border-gray-100">
+                <tr key={`${sk.key}-note`} className="border-b border-gray-300">
                   <td colSpan={4 + facilitatorIds.length} className="px-2 py-1">
                     {schedule.slotNotes?.[sk.key] ? (
                       <span className="text-xs text-orange-500 font-medium">{schedule.slotNotes[sk.key]}</span>
