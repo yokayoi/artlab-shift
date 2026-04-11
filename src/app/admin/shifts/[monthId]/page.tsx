@@ -97,6 +97,25 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
     });
   };
 
+  // 子どもの人数を更新して保存
+  const updateChildCount = (date: string, time: string, value: number) => {
+    if (!schedule) return;
+    const clamped = Math.max(0, Math.min(99, Math.floor(value)));
+    const newDays = schedule.days.map((day) => {
+      if (day.date !== date) return day;
+      return {
+        ...day,
+        slots: day.slots.map((slot) =>
+          slot.time === time ? { ...slot, childCount: clamped || undefined } : slot
+        ),
+      };
+    });
+    setSchedule({ ...schedule, days: newDays });
+    updateSchedule(monthId, { days: newDays }).catch((e) => {
+      console.error("子ども数の保存に失敗:", e);
+    });
+  };
+
   const toggleAssignment = (slotKey: string, uid: string) => {
     const name = getDisplayName(uid);
     setAssignments((prev) => {
@@ -472,7 +491,16 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
                   )}
                   <td className="px-2 py-2 text-gray-500 whitespace-nowrap text-xs">{sk.time}</td>
                   <td className="px-1 py-2 text-center text-xs text-green-700 font-semibold">
-                    {sk.childCount || <span className="text-gray-300 font-normal">—</span>}
+                    <input
+                      type="number"
+                      min={0}
+                      max={99}
+                      value={sk.childCount ?? ""}
+                      placeholder="—"
+                      onChange={(e) => updateChildCount(sk.date, sk.time, parseInt(e.target.value, 10) || 0)}
+                      className="w-10 px-0.5 text-center border border-green-300 rounded text-xs font-bold text-green-700 bg-white"
+                      title="子ども人数（クリックで変更）"
+                    />
                     <div className="mt-0.5 flex items-center justify-center gap-0.5 text-[10px] text-green-600 font-semibold">
                       要
                       <input
