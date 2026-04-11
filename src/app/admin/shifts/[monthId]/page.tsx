@@ -8,6 +8,7 @@ import {
   getMonthAvailabilities,
   getShift,
   saveShift,
+  updateSchedule,
   updateScheduleStatus,
   getAllUsers,
 } from "@/lib/firebase/firestore";
@@ -28,6 +29,7 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
   const [userMap, setUserMap] = useState<Record<string, UserProfile>>({});
   const [assignments, setAssignments] = useState<Record<string, string[]>>({});
   const [assignmentNames, setAssignmentNames] = useState<Record<string, string[]>>({});
+  const [requiredOverrides, setRequiredOverrides] = useState<Record<string, number>>({});
   const [dataLoading, setDataLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [simulation, setSimulation] = useState<Record<string, string[]> | null>(null);
@@ -55,6 +57,7 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
         getAllUsers(),
       ]);
       setSchedule(sched);
+      setRequiredOverrides(sched?.slotRequiredOverrides || {});
       const map: Record<string, UserProfile> = {};
       users.forEach((u) => { map[u.uid] = u; });
       setUserMap(map);
@@ -75,6 +78,23 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
 
   const getDisplayName = (uid: string) => {
     return userMap[uid]?.nickname || userMap[uid]?.displayName || uid;
+  };
+
+  // 必要ファシリテーター数を取得（手動上書き > childCountから自動計算）
+  const getRequired = (sk: { key: string; childCount?: number }) => {
+    const override = requiredOverrides[sk.key];
+    if (typeof override === "number") return override;
+    return getRequiredFacilitators(sk.childCount);
+  };
+
+  // 必要人数の手動上書きを保存
+  const updateRequiredOverride = (slotKey: string, value: number) => {
+    const clamped = Math.max(0, Math.min(9, Math.floor(value)));
+    const next = { ...requiredOverrides, [slotKey]: clamped };
+    setRequiredOverrides(next);
+    updateSchedule(monthId, { slotRequiredOverrides: next }).catch((e) => {
+      console.error("必要人数の保存に失敗:", e);
+    });
   };
 
   const toggleAssignment = (slotKey: string, uid: string) => {
@@ -133,7 +153,7 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
       day.slots.forEach((slot) => {
         if (!slot.needsFacilitator || !slot.classType) return;
         const slotKey = getSlotKey(day.date, slot.time);
-        const required = getRequiredFacilitators(slot.childCount);
+        const required = getRequired({ key: slotKey, childCount: slot.childCount });
         const availableUids = availabilities
           .filter((a) => a.slots[slotKey])
           .map((a) => a.facilitatorId);
@@ -365,11 +385,11 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
   // 不足スロット情報
   const shortageSlots = slotKeys.filter((sk) => {
     const assigned = assignments[sk.key] || [];
-    const required = getRequiredFacilitators(sk.childCount);
+    const required = getRequired(sk);
     return required > 0 && assigned.length < required;
   }).map((sk) => {
     const assigned = assignments[sk.key] || [];
-    const required = getRequiredFacilitators(sk.childCount);
+    const required = getRequired(sk);
     return { ...sk, shortage: required - assigned.length };
   });
 
@@ -436,7 +456,8 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
           <tbody>
             {slotKeys.map((sk) => {
               const assigned = assignments[sk.key] || [];
-              const required = getRequiredFacilitators(sk.childCount);
+              const required = getRequired(sk);
+              const isOverridden = typeof requiredOverrides[sk.key] === "number";
               const isFirst = !dateFirstRow.has(sk.date);
               if (isFirst) dateFirstRow.add(sk.date);
               return [
@@ -452,9 +473,21 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
                   <td className="px-2 py-2 text-gray-500 whitespace-nowrap text-xs">{sk.time}</td>
                   <td className="px-1 py-2 text-center text-xs text-green-700 font-semibold">
                     {sk.childCount || <span className="text-gray-300 font-normal">—</span>}
-                    {required > 0 && (
-                      <div className="text-[10px] text-green-600 font-semibold">要{required}名</div>
-                    )}
+                    <div className="mt-0.5 flex items-center justify-center gap-0.5 text-[10px] text-green-600 font-semibold">
+                      要
+                      <input
+                        type="number"
+                        min={0}
+                        max={9}
+                        value={required}
+                        onChange={(e) => updateRequiredOverride(sk.key, parseInt(e.target.value, 10) || 0)}
+                        className={`w-7 px-0.5 text-center border rounded text-[10px] leading-tight font-bold ${
+                          isOverridden ? "bg-yellow-50 border-yellow-400 text-yellow-700" : "bg-white border-green-300 text-green-700"
+                        }`}
+                        title={isOverridden ? "手動で設定された人数（クリックで変更）" : "childCountから自動計算（クリックで手動設定）"}
+                      />
+                      名
+                    </div>
                   </td>
                   <td className={`px-2 py-2 text-center font-bold bg-brand-50 ${
                     required > 0 && assigned.length < required ? "text-red-600" : assigned.length === 0 ? "text-gray-400" : "text-brand-700"
@@ -591,7 +624,7 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
                 <tbody>
                   {slotKeys.map((sk) => {
                     const simAssigned = simulation[sk.key] || [];
-                    const required = getRequiredFacilitators(sk.childCount);
+                    const required = getRequired(sk);
                     const isFirst = !simDateFirstRow.has(sk.date);
                     if (isFirst) simDateFirstRow.add(sk.date);
                     return (
@@ -789,7 +822,7 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
                       const key = getSlotKey(day.date, slot.time);
                       const colors = CLASS_TYPE_COLORS[slot.classType!];
                       const assignedCount = (assignments[key] || []).length;
-                      const required = getRequiredFacilitators(slot.childCount);
+                      const required = getRequired({ key, childCount: slot.childCount });
                       const isShort = required > 0 && assignedCount < required;
                       return (
                         <tr key={key}>
@@ -944,7 +977,7 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
                           const key = getSlotKey(day.date, slot.time);
                           const colors = CLASS_TYPE_COLORS[slot.classType!];
                           const assignedCount = (assignments[key] || []).length;
-                          const required = getRequiredFacilitators(slot.childCount);
+                          const required = getRequired({ key, childCount: slot.childCount });
                           const isShort = required > 0 && assignedCount < required;
                           return (
                             <tr key={key}>

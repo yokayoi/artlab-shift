@@ -65,6 +65,8 @@ export interface MonthSchedule {
   days: DaySchedule[];
   deadline?: string;
   slotNotes?: Record<string, string>;
+  /** slotKey → 管理者が手動指定した必要ファシリテーター数（childCount から自動計算される値を上書き） */
+  slotRequiredOverrides?: Record<string, number>;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
