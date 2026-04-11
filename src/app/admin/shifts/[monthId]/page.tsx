@@ -529,7 +529,7 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
                     );
                   })}
                 </tr>,
-                <tr key={`${sk.key}-note`} className={isLastOfDate ? "border-b-2 border-gray-400" : "border-b border-gray-100"}>
+                <tr key={`${sk.key}-note`} className={isLastOfDate ? "border-b-2 border-gray-300" : "border-b border-gray-100"}>
                   <td colSpan={4 + facilitatorIds.length} className="px-2 py-1">
                     {schedule.slotNotes?.[sk.key] ? (
                       <span className="text-xs text-orange-500 font-medium">{schedule.slotNotes[sk.key]}</span>
