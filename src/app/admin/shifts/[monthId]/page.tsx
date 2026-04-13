@@ -40,6 +40,7 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
   const [generatingImage, setGeneratingImage] = useState(false);
   const [lineSending, setLineSending] = useState(false);
   const [lineSent, setLineSent] = useState<{ sent: number; failed: number } | null>(null);
+  const [calendarSent, setCalendarSent] = useState<{ created: number; failed: number } | null>(null);
   const shiftTableRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -247,6 +248,24 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
       setLineSent({ sent: data.sent || 0, failed: data.failed || 0 });
     } catch {
       console.error("LINE notification failed");
+    }
+
+    // Googleカレンダー招待を自動送信
+    try {
+      const { getAuth } = await import("firebase/auth");
+      const calToken = await getAuth().currentUser?.getIdToken();
+      const calRes = await fetch("/api/calendar/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${calToken}`,
+        },
+        body: JSON.stringify({ monthId }),
+      });
+      const calData = await calRes.json();
+      setCalendarSent({ created: calData.created || 0, failed: calData.failed || 0 });
+    } catch {
+      console.error("Calendar event creation failed");
     }
   };
 
@@ -882,6 +901,15 @@ export default function AdminShiftsPage({ params }: { params: Promise<{ monthId:
               lineSent.failed === 0 ? "bg-blue-50 border border-blue-200 text-blue-800" : "bg-amber-50 border border-amber-200 text-amber-800"
             }`}>
               LINE通知: {lineSent.sent}名に送信{lineSent.failed > 0 ? `（${lineSent.failed}名失敗）` : "しました"}
+            </div>
+          )}
+
+          {/* Googleカレンダーステータス */}
+          {calendarSent && (
+            <div className={`px-4 py-3 rounded-xl text-sm ${
+              calendarSent.failed === 0 ? "bg-blue-50 border border-blue-200 text-blue-800" : "bg-amber-50 border border-amber-200 text-amber-800"
+            }`}>
+              Googleカレンダー: {calendarSent.created}件の予定を作成{calendarSent.failed > 0 ? `（${calendarSent.failed}件失敗）` : "しました"}
             </div>
           )}
 
