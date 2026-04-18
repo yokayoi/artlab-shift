@@ -584,6 +584,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
               <div className="mb-6 max-w-[640px] mx-auto bg-white rounded-xl border border-gray-200 overflow-hidden">
                 <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
                   <h3 className="text-sm font-bold text-gray-700">{month}月 シフト表</h3>
+                  <p className="text-xs text-red-600 font-bold mt-1">※ 10:30の回→30分前（10:00）集合 ／ 他の時間帯→10分前集合</p>
                 </div>
                 <div className="px-4 pt-3 pb-1 flex gap-4 text-xs text-gray-500">
                   {["カリキュラム", "オーダーメイド"].map((type) => {
@@ -688,9 +689,6 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                       </div>
                     );
                   })}
-                </div>
-                <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
-                  <p className="text-xs text-gray-600">※ 10:30の回は<span className="font-bold">30分前（10:00）</span>集合 ／ 他の時間帯は<span className="font-bold">10分前</span>集合</p>
                 </div>
                 <div className="px-4 py-4 bg-white border-t border-gray-200 space-y-1">
                   <p className="text-sm font-bold text-red-600">⚠️ 変更の際はLINEにてご連絡ください</p>
@@ -1412,6 +1410,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
           }), 1) * 120, padding: "20px 16px", backgroundColor: "#fff", fontFamily: "sans-serif" }}>
             <div style={{ textAlign: "center", marginBottom: 12 }}>
               <div style={{ fontSize: 18, fontWeight: "bold", color: "#1f2937" }}>{month}月 シフト表</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#dc2626", marginTop: 4 }}>※ 10:30の回→30分前（10:00）集合 ／ 他の時間帯→10分前集合</div>
             </div>
             <div style={{ display: "flex", gap: 12, justifyContent: "center", marginBottom: 16 }}>
               {["カリキュラム", "オーダーメイド"].map((type) => {
@@ -1519,9 +1518,6 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                 </div>
               );
             })}
-          </div>
-          <div style={{ padding: "8px 12px", backgroundColor: "#f9fafb", borderTop: "1px solid #e5e7eb", fontSize: 11, color: "#6b7280" }}>
-            ※ 10:30の回は<span style={{ fontWeight: 700 }}>30分前（10:00）</span>集合 ／ 他の時間帯は<span style={{ fontWeight: 700 }}>10分前</span>集合
           </div>
         </div>
       )}
