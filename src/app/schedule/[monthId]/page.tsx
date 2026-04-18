@@ -58,13 +58,20 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
   useEffect(() => {
     if (!user) return;
     (async () => {
-      let [sched, avail, shiftData, allAvails, allUsrs] = await Promise.all([
-        getSchedule(monthId),
-        getAvailability(monthId, user.uid),
-        getShift(monthId),
-        getMonthAvailabilities(monthId),
-        getAllUsers(),
-      ]);
+      let sched, avail, shiftData, allAvails, allUsrs;
+      try {
+        [sched, avail, shiftData, allAvails, allUsrs] = await Promise.all([
+          getSchedule(monthId),
+          getAvailability(monthId, user.uid),
+          getShift(monthId),
+          getMonthAvailabilities(monthId),
+          getAllUsers(),
+        ]);
+      } catch (err) {
+        console.error("Firestore data load failed:", err);
+        setDataLoading(false);
+        return;
+      }
       setAllAvailabilities(allAvails);
       setAdminUids(new Set(allUsrs.filter((u) => u.role === "admin").map((u) => u.uid)));
       setSchedule(sched);
@@ -681,6 +688,9 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                       </div>
                     );
                   })}
+                </div>
+                <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
+                  <p className="text-xs text-gray-600">※ 10:30の回は<span className="font-bold">30分前（10:00）</span>集合 ／ 他の時間帯は<span className="font-bold">10分前</span>集合</p>
                 </div>
                 <div className="px-4 py-4 bg-white border-t border-gray-200 space-y-1">
                   <p className="text-sm font-bold text-red-600">⚠️ 変更の際はLINEにてご連絡ください</p>
@@ -1509,6 +1519,9 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                 </div>
               );
             })}
+          </div>
+          <div style={{ padding: "8px 12px", backgroundColor: "#f9fafb", borderTop: "1px solid #e5e7eb", fontSize: 11, color: "#6b7280" }}>
+            ※ 10:30の回は<span style={{ fontWeight: 700 }}>30分前（10:00）</span>集合 ／ 他の時間帯は<span style={{ fontWeight: 700 }}>10分前</span>集合
           </div>
         </div>
       )}
