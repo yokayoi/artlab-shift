@@ -8,6 +8,8 @@ import {
   collection,
   query,
   where,
+  orderBy,
+  addDoc,
   getDocs,
   Timestamp,
   onSnapshot,
@@ -25,6 +27,9 @@ import {
   BankAccount,
   Attendance,
   AttendanceRecord,
+  PayrollConfirmation,
+  PayrollCarryOver,
+  PayrollReport,
 } from "../types";
 
 // ===== Users =====
@@ -353,6 +358,142 @@ export async function adminEditAttendance(
 
 export async function updateUserBankAccount(uid: string, bankAccount: BankAccount) {
   await updateDoc(doc(getFirebaseDb(), "users", uid), { bankAccount, updatedAt: Timestamp.now() });
+}
+
+// ===== Payroll Confirmation =====
+
+export async function confirmPayroll(data: PayrollConfirmation) {
+  const docId = `${data.monthId}_${data.facilitatorId}`;
+  await setDoc(doc(getFirebaseDb(), "payrollConfirmations", docId), data);
+}
+
+export async function getPayrollConfirmation(monthId: string, facilitatorId: string): Promise<PayrollConfirmation | null> {
+  const docId = `${monthId}_${facilitatorId}`;
+  const snap = await getDoc(doc(getFirebaseDb(), "payrollConfirmations", docId));
+  return snap.exists() ? (snap.data() as PayrollConfirmation) : null;
+}
+
+export async function getMonthPayrollConfirmations(monthId: string): Promise<PayrollConfirmation[]> {
+  const q = query(collection(getFirebaseDb(), "payrollConfirmations"), where("monthId", "==", monthId));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => d.data() as PayrollConfirmation);
+}
+
+export async function cancelPayrollConfirmation(monthId: string, facilitatorId: string) {
+  const docId = `${monthId}_${facilitatorId}`;
+  await deleteDoc(doc(getFirebaseDb(), "payrollConfirmations", docId));
+}
+
+// ===== Payroll Carry Over（先月からの繰り越し支払額） =====
+
+export async function getPayrollCarryOver(
+  monthId: string,
+  facilitatorId: string
+): Promise<PayrollCarryOver | null> {
+  const docId = `${monthId}_${facilitatorId}`;
+  const snap = await getDoc(doc(getFirebaseDb(), "payrollCarryOvers", docId));
+  return snap.exists() ? (snap.data() as PayrollCarryOver) : null;
+}
+
+export async function getMonthPayrollCarryOvers(monthId: string): Promise<PayrollCarryOver[]> {
+  const q = query(collection(getFirebaseDb(), "payrollCarryOvers"), where("monthId", "==", monthId));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => d.data() as PayrollCarryOver);
+}
+
+export async function setPayrollCarryOver(
+  monthId: string,
+  facilitatorId: string,
+  amount: number,
+  updatedBy: string,
+  note?: string
+) {
+  const docId = `${monthId}_${facilitatorId}`;
+  const data: PayrollCarryOver = {
+    monthId,
+    facilitatorId,
+    amount,
+    updatedAt: Timestamp.now(),
+    updatedBy,
+    ...(note ? { note } : {}),
+  };
+  await setDoc(doc(getFirebaseDb(), "payrollCarryOvers", docId), data);
+}
+
+export async function deletePayrollCarryOver(monthId: string, facilitatorId: string) {
+  const docId = `${monthId}_${facilitatorId}`;
+  await deleteDoc(doc(getFirebaseDb(), "payrollCarryOvers", docId));
+}
+
+// ===== Payroll Reports（給与の不備報告） =====
+
+export async function createPayrollReport(data: {
+  monthId: string;
+  facilitatorId: string;
+  facilitatorName: string;
+  message: string;
+}): Promise<string> {
+  const ref = await addDoc(collection(getFirebaseDb(), "payrollReports"), {
+    ...data,
+    status: "open",
+    createdAt: Timestamp.now(),
+  });
+  return ref.id;
+}
+
+export async function getMonthPayrollReports(monthId: string): Promise<PayrollReport[]> {
+  const q = query(
+    collection(getFirebaseDb(), "payrollReports"),
+    where("monthId", "==", monthId)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as PayrollReport));
+}
+
+export async function getFacilitatorPayrollReports(
+  monthId: string,
+  facilitatorId: string
+): Promise<PayrollReport[]> {
+  const q = query(
+    collection(getFirebaseDb(), "payrollReports"),
+    where("monthId", "==", monthId),
+    where("facilitatorId", "==", facilitatorId)
+  );
+  const snap = await getDocs(q);
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() } as PayrollReport))
+    .sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+}
+
+export async function getOpenPayrollReports(): Promise<PayrollReport[]> {
+  const q = query(
+    collection(getFirebaseDb(), "payrollReports"),
+    where("status", "==", "open"),
+    orderBy("createdAt", "desc")
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as PayrollReport));
+}
+
+export async function resolvePayrollReport(
+  reportId: string,
+  resolvedBy: string,
+  adminResponse?: string
+) {
+  await updateDoc(doc(getFirebaseDb(), "payrollReports", reportId), {
+    status: "resolved",
+    resolvedAt: Timestamp.now(),
+    resolvedBy,
+    ...(adminResponse ? { adminResponse } : {}),
+  });
+}
+
+export async function reopenPayrollReport(reportId: string) {
+  await updateDoc(doc(getFirebaseDb(), "payrollReports", reportId), {
+    status: "open",
+    resolvedAt: deleteField(),
+    resolvedBy: deleteField(),
+  });
 }
 
 // ===== Schedule Queries =====

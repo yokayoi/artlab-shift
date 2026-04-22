@@ -32,6 +32,7 @@ export default function AdminPage() {
   useEffect(() => {
     if (!user || !isAdmin) return;
     (async () => {
+      try {
       const now = new Date();
       const entries: MonthEntry[] = [];
 
@@ -68,6 +69,10 @@ export default function AdminPage() {
       }
       setMonths(entries);
       setDataLoading(false);
+      } catch (err) {
+        console.error("Admin data load failed:", err);
+        setDataLoading(false);
+      }
     })();
   }, [user, isAdmin]);
 

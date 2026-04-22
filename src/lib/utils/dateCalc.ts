@@ -95,6 +95,13 @@ export function formatMonthId(year: number, month: number): string {
   return `${year}-${String(month).padStart(2, "0")}`;
 }
 
+export function getNextMonthId(monthId: string): string {
+  const { year, month } = parseMonthId(monthId);
+  const nextYear = month === 12 ? year + 1 : year;
+  const nextMonth = month === 12 ? 1 : month + 1;
+  return formatMonthId(nextYear, nextMonth);
+}
+
 export function formatDate(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");

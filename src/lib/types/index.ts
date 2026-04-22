@@ -89,6 +89,56 @@ export interface ShiftAssignment {
   updatedAt: Timestamp;
 }
 
+export interface PayrollDayDetail {
+  dayKey: string;
+  checkIn: Timestamp | null;
+  checkOut: Timestamp | null;
+  minutes: number;
+  slotCount: number;
+}
+
+export interface PayrollConfirmation {
+  monthId: string;
+  facilitatorId: string;
+  confirmedAt: Timestamp;
+  confirmedBy: string;
+  totalPay: number;
+  classPay: number;
+  transportCost: number;
+  totalMinutes: number;
+  breakMinutes: number;
+  slotCount: number;
+  hourlyRate: number;
+  days: PayrollDayDetail[];
+  carryOverIn?: number;
+  carryOverOut?: number;
+  isDeferred?: boolean;
+}
+
+export interface PayrollCarryOver {
+  monthId: string;
+  facilitatorId: string;
+  amount: number;
+  note?: string;
+  updatedAt: Timestamp;
+  updatedBy: string;
+}
+
+export type PayrollReportStatus = "open" | "resolved";
+
+export interface PayrollReport {
+  id: string;
+  monthId: string;
+  facilitatorId: string;
+  facilitatorName: string;
+  message: string;
+  status: PayrollReportStatus;
+  createdAt: Timestamp;
+  resolvedAt?: Timestamp;
+  resolvedBy?: string;
+  adminResponse?: string;
+}
+
 export interface Announcement {
   id: string;
   title: string;

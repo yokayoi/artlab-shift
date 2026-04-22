@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, useRef, use } from "react";
+import { useEffect, useState, useRef, use, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { getSchedule, getAvailability, saveAvailability, getShift, saveShift, getActiveAnnouncements, getCollectingSchedules, getAttendance, checkIn as firestoreCheckIn, checkOut as firestoreCheckOut, editMyAttendanceTime, resetDayAttendance, getMonthAvailabilities, getAllUsers, updateSchedule } from "@/lib/firebase/firestore";
-import { MonthSchedule, Availability, ShiftAssignment, Announcement, Attendance, UserProfile } from "@/lib/types";
+import { getSchedule, getAvailability, saveAvailability, getShift, saveShift, getActiveAnnouncements, getCollectingSchedules, getAttendance, checkIn as firestoreCheckIn, checkOut as firestoreCheckOut, editMyAttendanceTime, resetDayAttendance, getMonthAvailabilities, getAllUsers, updateSchedule, getPayrollConfirmation, createPayrollReport, getFacilitatorPayrollReports } from "@/lib/firebase/firestore";
+import { MonthSchedule, Availability, ShiftAssignment, Announcement, Attendance, UserProfile, PayrollConfirmation, PayrollReport } from "@/lib/types";
 import { getSlotKey, parseMonthId, formatMonthId, formatDateShort, formatDeadline, isDeadlinePassed, getSlotDate, getTodayString, timestampToTimeString, datetimeLocalToTimestamp, timestampToDatetimeLocal } from "@/lib/utils/dateCalc";
-import { CLASS_TYPE_COLORS, STATUS_LABELS, CLASS_DURATION_MINUTES, TRAINING_MAX, LAUNCH_YEAR, LAUNCH_MONTH, DEMO_MONTH_ID, getTier, getNextTier, isTraining, getEffectiveRate, getRequiredFacilitators } from "@/lib/utils/constants";
+import { CLASS_TYPE_COLORS, STATUS_LABELS, CLASS_DURATION_MINUTES, TRAINING_MAX, LAUNCH_YEAR, LAUNCH_MONTH, DEMO_MONTH_ID, DEMO_HOURLY_RATE, getTier, getNextTier, isTraining, getEffectiveRate, getEffectiveRateForMonth, getRequiredFacilitators, getAssemblyTime, BREAK_MINUTES, getBreakDeduction, getSatokoPayrollThanks } from "@/lib/utils/constants";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 
@@ -41,6 +41,11 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
   const [collectingMonths, setCollectingMonths] = useState<string[]>([]);
   const [satokoMsg, setSatokoMsg] = useState<string>("");
   const [attendance, setAttendance] = useState<Attendance | null>(null);
+  const [payrollConf, setPayrollConf] = useState<PayrollConfirmation | null>(null);
+  const [myPayrollReports, setMyPayrollReports] = useState<PayrollReport[]>([]);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportText, setReportText] = useState("");
+  const [reportSending, setReportSending] = useState(false);
   const [checkingIn, setCheckingIn] = useState<string | null>(null);
   const [animationModal, setAnimationModal] = useState<{ type: "checkin" | "checkout"; message: string } | null>(null);
   const [sparkleKey, setSparkleKey] = useState<string | null>(null);
@@ -76,26 +81,25 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
       setAdminUids(new Set(allUsrs.filter((u) => u.role === "admin").map((u) => u.uid)));
       setSchedule(sched);
 
-      // デモ月: ログインユーザーを自動でシフトに追加
+      // デモ月: ログインユーザーを自動でシフトに追加（1日4クラス分すべて）
       if (monthId === DEMO_MONTH_ID && sched && sched.status === "published" && profile) {
-        const isAssigned = shiftData && Object.values(shiftData.assignments).some((uids) => uids.includes(user.uid));
-        if (!isAssigned) {
-          const newAssignments: Record<string, string[]> = { ...(shiftData?.assignments || {}) };
-          const newNames: Record<string, string[]> = { ...(shiftData?.assignmentNames || {}) };
-          const displayName = profile.nickname || profile.displayName;
-          sched.days.forEach((day) =>
-            day.slots.forEach((slot) => {
-              if (slot.needsFacilitator && slot.classType) {
-                const key = getSlotKey(day.date, slot.time);
-                if (!newAssignments[key]) newAssignments[key] = [];
-                if (!newNames[key]) newNames[key] = [];
-                if (!newAssignments[key].includes(user.uid)) {
-                  newAssignments[key] = [...newAssignments[key], user.uid];
-                  newNames[key] = [...newNames[key], displayName];
-                }
-              }
-            })
-          );
+        const newAssignments: Record<string, string[]> = { ...(shiftData?.assignments || {}) };
+        const newNames: Record<string, string[]> = { ...(shiftData?.assignmentNames || {}) };
+        const displayName = profile.nickname || profile.displayName;
+        let modified = false;
+        sched.days.forEach((day) =>
+          day.slots.forEach((slot) => {
+            const key = getSlotKey(day.date, slot.time);
+            if (!newAssignments[key]) newAssignments[key] = [];
+            if (!newNames[key]) newNames[key] = [];
+            if (!newAssignments[key].includes(user.uid)) {
+              newAssignments[key] = [...newAssignments[key], user.uid];
+              newNames[key] = [...newNames[key], displayName];
+              modified = true;
+            }
+          })
+        );
+        if (modified) {
           await saveShift(monthId, newAssignments, newNames, user.uid);
           shiftData = { id: monthId, monthId, assignments: newAssignments, assignmentNames: newNames, createdBy: user.uid } as ShiftAssignment;
         }
@@ -103,10 +107,16 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
 
       setShift(shiftData);
       try {
-        const attendanceData = await getAttendance(monthId, user.uid);
+        const [attendanceData, confData, reportsData] = await Promise.all([
+          getAttendance(monthId, user.uid),
+          getPayrollConfirmation(monthId, user.uid),
+          getFacilitatorPayrollReports(monthId, user.uid),
+        ]);
         setAttendance(attendanceData);
+        setPayrollConf(confData);
+        setMyPayrollReports(reportsData);
       } catch {
-        // attendance collection may not have rules deployed yet
+        // collections may not have rules deployed yet
       }
       try {
         const [anns, collectingScheds] = await Promise.all([
@@ -166,6 +176,33 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
         ? `${name}さん、今日もよろしくね！`
         : `${name}さん、おつかれさま！`;
     }
+  };
+
+  const handleSubmitPayrollReport = async () => {
+    if (!user || !profile) return;
+    const text = reportText.trim();
+    if (text.length === 0) {
+      alert("報告内容を入力してください");
+      return;
+    }
+    setReportSending(true);
+    try {
+      await createPayrollReport({
+        monthId,
+        facilitatorId: user.uid,
+        facilitatorName: profile.nickname || profile.displayName,
+        message: text,
+      });
+      const reports = await getFacilitatorPayrollReports(monthId, user.uid);
+      setMyPayrollReports(reports);
+      setReportText("");
+      setReportModalOpen(false);
+      alert("管理者に報告を送信しました");
+    } catch (err) {
+      console.error(err);
+      alert("送信に失敗しました");
+    }
+    setReportSending(false);
   };
 
   const handleDayCheckIn = async (dayKey: string) => {
@@ -386,6 +423,281 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
         </button>
       </div>
 
+      {/* 今月の給与 */}
+      {profile && (() => {
+        const mySlots = shift && schedule
+          ? Object.entries(shift.assignments)
+              .filter(([, uids]) => uids.includes(user?.uid || ""))
+              .map(([key]) => key)
+          : [];
+        const classCount = profile.classCount || 0;
+        const effectiveRate = getEffectiveRateForMonth(monthId, classCount, profile.hourlyRate || 0);
+        const trainingRate = classCount >= 1 && classCount <= TRAINING_MAX;
+        const transportCost = profile.transportCost || 0;
+
+        // Group slots by day and calculate actual minutes from day-level attendance
+        const slotsByDay: Record<string, string[]> = {};
+        mySlots.forEach((key) => {
+          const dayKey = getSlotDate(key);
+          if (!slotsByDay[dayKey]) slotsByDay[dayKey] = [];
+          slotsByDay[dayKey].push(key);
+        });
+
+        let actualMinutes = 0;
+        let hasAttendance = false;
+        let totalBreakDeduction = 0;
+        for (const [dayKey, daySlots] of Object.entries(slotsByDay)) {
+          const breakMin = getBreakDeduction(daySlots);
+          totalBreakDeduction += breakMin;
+          const record = attendance?.records?.[dayKey];
+          if (record?.checkIn && record?.checkOut) {
+            actualMinutes += Math.round((record.checkOut.toDate().getTime() - record.checkIn.toDate().getTime()) / 60000) - breakMin;
+            hasAttendance = true;
+          } else {
+            actualMinutes += daySlots.length * CLASS_DURATION_MINUTES - breakMin;
+          }
+        }
+
+        const scheduledMinutes = mySlots.length * CLASS_DURATION_MINUTES - totalBreakDeduction;
+        const displayMinutes = hasAttendance ? actualMinutes : scheduledMinutes;
+        const classPay = Math.round(effectiveRate * (displayMinutes / 60));
+        const totalPay = classPay + (mySlots.length > 0 ? transportCost : 0);
+        const slotLabels: Record<string, string> = {};
+        if (schedule) {
+          schedule.days.forEach((day) => {
+            day.slots.forEach((slot) => {
+              slotLabels[getSlotKey(day.date, slot.time)] = `${formatDateShort(day.date)} ${slot.time}`;
+            });
+          });
+        }
+        return (
+          <div className={`mb-6 bg-white rounded-xl border p-4 ${payrollConf ? "border-green-300" : "border-gray-200"}`}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <h2 className="font-bold text-brand-700">{month}月の給与</h2>
+                {payrollConf && (
+                  <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">確定済み</span>
+                )}
+              </div>
+              <span className={`text-sm font-medium px-2 py-0.5 rounded ${effectiveRate > 0 ? "bg-brand-50 text-brand-700" : "bg-red-50 text-red-500"}`}>
+                {effectiveRate > 0
+                  ? `時給 ¥${(payrollConf?.hourlyRate || effectiveRate).toLocaleString()}${trainingRate ? "（研修）" : ""}`
+                  : "時給未設定"}
+              </span>
+            </div>
+            {payrollConf ? (
+              <>
+                <div className="text-xs text-green-600 mb-3">
+                  {payrollConf.confirmedAt.toDate().toLocaleDateString("ja-JP")} 確定
+                </div>
+                {/* 日別明細 */}
+                <div className="space-y-1 mb-3">
+                  {payrollConf.days.map((d) => (
+                    <div key={d.dayKey} className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-gray-600 w-20">{formatDateShort(d.dayKey)}</span>
+                        {d.checkIn && d.checkOut ? (
+                          <span className="text-gray-500">
+                            IN {timestampToTimeString(d.checkIn)} — OUT {timestampToTimeString(d.checkOut)}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">未打刻</span>
+                        )}
+                      </div>
+                      <span className="text-gray-500">{d.minutes}分 × {d.slotCount}コマ</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm text-gray-500">
+                    {payrollConf.slotCount}コマ（{payrollConf.totalMinutes}分{payrollConf.breakMinutes > 0 ? ` 休憩−${payrollConf.breakMinutes}分` : ""}）
+                  </div>
+                  <div className="text-sm text-gray-700">
+                    ¥{payrollConf.classPay.toLocaleString()}
+                  </div>
+                </div>
+                {payrollConf.transportCost > 0 && (
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-sm text-gray-500">交通費</div>
+                    <div className="text-sm text-gray-700">¥{payrollConf.transportCost.toLocaleString()}</div>
+                  </div>
+                )}
+                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                  <div className="text-sm font-medium text-gray-700">合計</div>
+                  <div className="text-2xl font-bold text-brand-700">
+                    ¥{payrollConf.totalPay.toLocaleString()}
+                  </div>
+                </div>
+              </>
+            ) : mySlots.length === 0 ? (
+              isAdmin && schedule ? (() => {
+                // 管理者向けデモ試算: 1日4クラス参加した想定
+                const demoSlots: string[] = [];
+                schedule.days.forEach((day) =>
+                  day.slots.forEach((slot) => {
+                    demoSlots.push(getSlotKey(day.date, slot.time));
+                  })
+                );
+                const demoSlotsByDay: Record<string, string[]> = {};
+                demoSlots.forEach((k) => {
+                  const dk = getSlotDate(k);
+                  if (!demoSlotsByDay[dk]) demoSlotsByDay[dk] = [];
+                  demoSlotsByDay[dk].push(k);
+                });
+                const demoBreakMin = Object.values(demoSlotsByDay).reduce(
+                  (s, ks) => s + getBreakDeduction(ks),
+                  0
+                );
+                const demoMinutes = demoSlots.length * CLASS_DURATION_MINUTES - demoBreakMin;
+                const demoRate = effectiveRate > 0 ? effectiveRate : DEMO_HOURLY_RATE;
+                const demoClassPay = Math.round(demoRate * (demoMinutes / 60));
+                const demoTotal = demoClassPay + transportCost;
+                return (
+                  <>
+                    <div className="mb-3 flex flex-wrap items-center gap-2">
+                      <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-medium">
+                        管理者デモ試算
+                      </span>
+                      <span className="text-[10px] text-gray-500">
+                        1日4クラス × {Object.keys(demoSlotsByDay).length}日 参加した想定（実シフトではありません）
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-sm text-gray-500">
+                        {demoSlots.length}コマ（{demoMinutes}分
+                        {demoBreakMin > 0 ? ` 休憩−${demoBreakMin}分` : ""}）
+                      </div>
+                      <div className="text-sm text-gray-700">¥{demoClassPay.toLocaleString()}</div>
+                    </div>
+                    {transportCost > 0 && (
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-sm text-gray-500">交通費</div>
+                        <div className="text-sm text-gray-700">¥{transportCost.toLocaleString()}</div>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                      <div className="text-sm font-medium text-gray-700">合計（デモ試算）</div>
+                      <div className="text-2xl font-bold text-brand-700">
+                        ¥{demoTotal.toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {demoSlots.sort().map((key) => (
+                        <span
+                          key={key}
+                          className="text-xs bg-gray-50 border border-gray-200 rounded px-2 py-0.5 text-gray-600"
+                        >
+                          {slotLabels[key] || key}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                );
+              })() : (
+                <div className="text-sm text-gray-400">シフト未割当</div>
+              )
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm text-gray-500">
+                    {mySlots.length}コマ（{displayMinutes}分{hasAttendance ? " 実績" : ""}{totalBreakDeduction > 0 ? ` 休憩−${totalBreakDeduction}分` : ""}）
+                  </div>
+                  <div className="text-sm text-gray-700">
+                    ¥{classPay.toLocaleString()}
+                  </div>
+                </div>
+                {transportCost > 0 && (
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-sm text-gray-500">交通費</div>
+                    <div className="text-sm text-gray-700">¥{transportCost.toLocaleString()}</div>
+                  </div>
+                )}
+                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                  <div className="text-sm font-medium text-gray-700">合計（見込み）</div>
+                  <div className={`text-2xl font-bold ${effectiveRate > 0 ? "text-brand-700" : "text-gray-400"}`}>
+                    {effectiveRate > 0 ? `¥${totalPay.toLocaleString()}` : "—"}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {mySlots.sort().map((key) => (
+                    <span key={key} className="text-xs bg-gray-50 border border-gray-200 rounded px-2 py-0.5 text-gray-600">
+                      {slotLabels[key] || key}
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
+            {/* 既存の報告 */}
+            {myPayrollReports.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
+                <div className="text-xs font-medium text-gray-600">管理者への報告</div>
+                {myPayrollReports.map((r) => (
+                  <div
+                    key={r.id}
+                    className={`text-xs rounded-lg px-3 py-2 border ${
+                      r.status === "open"
+                        ? "bg-amber-50 border-amber-200 text-amber-800"
+                        : "bg-gray-50 border-gray-200 text-gray-600"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-medium">
+                        {r.status === "open" ? "対応待ち" : "対応済み"}
+                      </span>
+                      <span className="text-[10px] text-gray-400">
+                        {r.createdAt.toDate().toLocaleDateString("ja-JP")}
+                      </span>
+                    </div>
+                    <div className="whitespace-pre-wrap break-words">{r.message}</div>
+                    {r.adminResponse && (
+                      <div className="mt-2 pt-2 border-t border-current/20">
+                        <div className="text-[10px] font-medium mb-0.5">管理者からの返信</div>
+                        <div className="whitespace-pre-wrap break-words">{r.adminResponse}</div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* AI-SATO-β から給与に向けた「ありがとう」一言 */}
+            {(() => {
+              const satokoName = profile.nickname || profile.displayName || "あなた";
+              const satokoThanks = getSatokoPayrollThanks(
+                satokoName,
+                `${monthId}-${user?.uid || "guest"}`
+              );
+              return (
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <div className="bg-pink-50 rounded-xl border border-pink-200 p-3 flex items-start gap-3">
+                    <img
+                      src="/sato.png"
+                      alt="AI-SATO-β"
+                      className="rounded-full object-cover shrink-0"
+                      style={{ width: 38, height: 38 }}
+                    />
+                    <div>
+                      <div className="text-[10px] font-medium text-pink-600 mb-0.5">
+                        AI-SATO-β からの感謝
+                      </div>
+                      <p className="text-sm text-gray-700 leading-relaxed">{satokoThanks}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+            {/* 不備を報告ボタン */}
+            <div className="mt-3 pt-3 border-t border-gray-100 flex justify-end">
+              <button
+                onClick={() => setReportModalOpen(true)}
+                className="text-xs text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-3 py-1.5 rounded-lg"
+              >
+                給与に不備があれば管理者に報告
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
       {!schedule ? (
         <div className="text-center py-12 text-gray-400">
           この月のスケジュールはまだ登録されていません
@@ -448,13 +760,22 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                             <span className="text-xs opacity-90">チェックイン</span>
                           </button>
                         </div>
-                      ) : !hasCheckIn ? (
+                      ) : !hasCheckIn ? (() => {
+                        const isToday = dayKey === getTodayString();
+                        return (
                         <div className="flex flex-col items-center py-2">
+                          {!isToday && (
+                            <p className="text-xs text-gray-400 mb-2">当日のみチェックインできます</p>
+                          )}
                           <div className="relative">
                             <button
                               onClick={() => handleDayCheckIn(dayKey)}
-                              disabled={isProcessing}
-                              className="w-28 h-28 rounded-full bg-green-500 hover:bg-green-600 active:scale-95 text-white font-bold text-base disabled:bg-gray-300 flex flex-col items-center justify-center transition-all"
+                              disabled={isProcessing || !isToday}
+                              className={`w-28 h-28 rounded-full text-white font-bold text-base flex flex-col items-center justify-center transition-all ${
+                                isToday
+                                  ? "bg-green-500 hover:bg-green-600 active:scale-95 disabled:bg-gray-300"
+                                  : "bg-gray-300 cursor-not-allowed"
+                              }`}
                             >
                               {isProcessing ? (
                                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white" />
@@ -474,7 +795,8 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                             )}
                           </div>
                         </div>
-                      ) : !hasCheckOut ? (
+                        );
+                      })() : !hasCheckOut ? (
                         <div className="space-y-4">
                           <div className="flex items-center justify-center gap-3">
                             <span className="text-sm text-gray-500 font-medium">IN</span>
@@ -584,7 +906,6 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
               <div className="mb-6 max-w-[640px] mx-auto bg-white rounded-xl border border-gray-200 overflow-hidden">
                 <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
                   <h3 className="text-sm font-bold text-gray-700">{month}月 シフト表</h3>
-                  <p className="text-xs text-red-600 font-bold mt-1">※ 10:30の回→30分前（10:00）集合 ／ 他の時間帯→10分前集合</p>
                 </div>
                 <div className="px-4 pt-3 pb-1 flex gap-4 text-xs text-gray-500">
                   {["カリキュラム", "オーダーメイド"].map((type) => {
@@ -598,6 +919,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                 </div>
                 <div className="p-4 pt-2 space-y-4 overflow-x-auto">
                   {schedule.days.map((day) => {
+                    const isPastDay = day.date < getTodayString();
                     const activeSlots = day.slots.filter((s) => s.needsFacilitator && s.classType);
                     if (activeSlots.length === 0) return null;
                     const dayFacUids: string[] = [];
@@ -636,8 +958,22 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                       const names = shift.assignmentNames?.[k] || [];
                       uids.forEach((uid, i) => { if (!facNameMap[uid]) facNameMap[uid] = names[i] || uid; });
                     });
+                    const slotTimes = activeSlots.map((s) => s.time);
+                    const idx12 = slotTimes.indexOf("12:00");
+                    const idx14 = slotTimes.indexOf("14:30");
+                    const hasBreak = idx12 !== -1 && idx14 !== -1 && idx14 === idx12 + 1;
+                    if (hasBreak) {
+                      dayFacUids.forEach((uid) => {
+                        const cells = facCells[uid];
+                        if (cells[idx12].assigned && cells[idx14].assigned) {
+                          let startIdx = idx12;
+                          while (startIdx > 0 && !cells[startIdx].show) startIdx--;
+                          cells[startIdx].rowSpan += 1;
+                        }
+                      });
+                    }
                     return (
-                      <div key={day.date}>
+                      <div key={day.date} className={isPastDay ? "opacity-40" : ""}>
                         <div className="bg-gray-100 px-3 py-1.5 rounded-md mb-1">
                           <span className="text-sm font-bold text-gray-700">{formatDateShort(day.date)}</span>
                         </div>
@@ -650,8 +986,10 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                               const required = getRequiredFacilitators(slot.childCount);
                               const isShort = required > 0 && assignedCount < required;
                               return (
-                                <tr key={key}>
-                                  <td className="border border-gray-200 px-2 py-2 align-top w-20 text-left">
+                                <Fragment key={key}>
+                                <tr>
+                                  <td className="border border-gray-200 px-2 py-2 align-top w-24 text-left">
+                                    <div className="text-[11px] max-sm:text-[10px] text-brand-500 font-semibold">集合 {getAssemblyTime(slot.time)}</div>
                                     <div className="flex items-center gap-1.5">
                                       <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: colors.bg, border: `2px solid ${colors.border}` }} />
                                       <span className="font-bold text-gray-600 text-sm max-sm:text-xs">{slot.time}</span>
@@ -682,6 +1020,19 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                                     );
                                   })}
                                 </tr>
+                                {hasBreak && slotIdx === idx12 && (
+                                  <tr className="bg-gray-50">
+                                    <td className="border border-gray-200 px-2 py-1 text-xs text-gray-500 font-medium text-center whitespace-nowrap">
+                                      🍙 休憩<br />13:30〜14:15
+                                    </td>
+                                    {dayFacUids.map((uid) => {
+                                      const spansBreak = facCells[uid][idx12].assigned && facCells[uid][idx14].assigned;
+                                      if (spansBreak) return null;
+                                      return <td key={uid} className="border border-gray-200 bg-gray-50" />;
+                                    })}
+                                  </tr>
+                                )}
+                                </Fragment>
                               );
                             })}
                           </tbody>
@@ -700,8 +1051,11 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                     .filter(([, uids]) => uids.includes(user?.uid || ""))
                     .map(([key]) => key);
                   const classCount = profile.classCount || 0;
-                  const effectiveRate = getEffectiveRate(classCount, profile.hourlyRate || 0);
-                  const scheduledMinutes = mySlots.length * CLASS_DURATION_MINUTES;
+                  const effectiveRate = getEffectiveRateForMonth(monthId, classCount, profile.hourlyRate || 0);
+                  const slotsByDayEst: Record<string, string[]> = {};
+                  mySlots.forEach((k) => { const d = getSlotDate(k); if (!slotsByDayEst[d]) slotsByDayEst[d] = []; slotsByDayEst[d].push(k); });
+                  const totalBreakMin = Object.values(slotsByDayEst).reduce((sum, keys) => sum + getBreakDeduction(keys), 0);
+                  const scheduledMinutes = mySlots.length * CLASS_DURATION_MINUTES - totalBreakMin;
                   const classPay = Math.round(effectiveRate * (scheduledMinutes / 60));
                   const transportCost = profile.transportCost || 0;
                   const totalPay = classPay + (mySlots.length > 0 ? transportCost : 0);
@@ -712,7 +1066,7 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                         <span className="text-xs text-gray-500">今月の給与（見込み）</span>
                         <span className="text-base font-bold text-brand-700">¥{totalPay.toLocaleString()}</span>
                       </div>
-                      <div className="text-[11px] text-gray-400 mt-0.5">{mySlots.length}コマ × 時給¥{effectiveRate.toLocaleString()}{transportCost > 0 ? ` + 交通費¥${transportCost.toLocaleString()}` : ""}</div>
+                      <div className="text-[11px] text-gray-400 mt-0.5">{mySlots.length}コマ × 時給¥{effectiveRate.toLocaleString()}{totalBreakMin > 0 ? ` − 休憩${totalBreakMin}分` : ""}{transportCost > 0 ? ` + 交通費¥${transportCost.toLocaleString()}` : ""}</div>
                     </div>
                   );
                 })()}
@@ -1175,97 +1529,6 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
         );
       })()}
 
-      {/* 今月の給与 */}
-      {profile && (() => {
-        const mySlots = shift && schedule
-          ? Object.entries(shift.assignments)
-              .filter(([, uids]) => uids.includes(user?.uid || ""))
-              .map(([key]) => key)
-          : [];
-        const classCount = profile.classCount || 0;
-        const effectiveRate = getEffectiveRate(classCount, profile.hourlyRate || 0);
-        const trainingRate = classCount >= 1 && classCount <= TRAINING_MAX;
-        const transportCost = profile.transportCost || 0;
-
-        // Group slots by day and calculate actual minutes from day-level attendance
-        const slotsByDay: Record<string, string[]> = {};
-        mySlots.forEach((key) => {
-          const dayKey = getSlotDate(key);
-          if (!slotsByDay[dayKey]) slotsByDay[dayKey] = [];
-          slotsByDay[dayKey].push(key);
-        });
-
-        let actualMinutes = 0;
-        let hasAttendance = false;
-        for (const [dayKey, daySlots] of Object.entries(slotsByDay)) {
-          const record = attendance?.records?.[dayKey];
-          if (record?.checkIn && record?.checkOut) {
-            actualMinutes += Math.round((record.checkOut.toDate().getTime() - record.checkIn.toDate().getTime()) / 60000);
-            hasAttendance = true;
-          } else {
-            actualMinutes += daySlots.length * CLASS_DURATION_MINUTES;
-          }
-        }
-
-        const scheduledMinutes = mySlots.length * CLASS_DURATION_MINUTES;
-        const displayMinutes = hasAttendance ? actualMinutes : scheduledMinutes;
-        const classPay = Math.round(effectiveRate * (displayMinutes / 60));
-        const totalPay = classPay + (mySlots.length > 0 ? transportCost : 0);
-        const slotLabels: Record<string, string> = {};
-        if (schedule) {
-          schedule.days.forEach((day) => {
-            day.slots.forEach((slot) => {
-              slotLabels[getSlotKey(day.date, slot.time)] = `${formatDateShort(day.date)} ${slot.time}`;
-            });
-          });
-        }
-        return (
-          <div className="mt-4 bg-white rounded-xl border border-gray-200 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="font-medium text-gray-800">{month}月の給与</h2>
-              <span className={`text-sm font-medium px-2 py-0.5 rounded ${effectiveRate > 0 ? "bg-brand-50 text-brand-700" : "bg-red-50 text-red-500"}`}>
-                {effectiveRate > 0
-                  ? `時給 ¥${effectiveRate.toLocaleString()}${trainingRate ? "（研修）" : ""}`
-                  : "時給未設定"}
-              </span>
-            </div>
-            {mySlots.length === 0 ? (
-              <div className="text-sm text-gray-400">シフト未割当</div>
-            ) : (
-              <>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-sm text-gray-500">
-                    {mySlots.length}コマ（{displayMinutes}分{hasAttendance ? " 実績" : ""}）
-                  </div>
-                  <div className="text-sm text-gray-700">
-                    ¥{classPay.toLocaleString()}
-                  </div>
-                </div>
-                {transportCost > 0 && (
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-sm text-gray-500">交通費</div>
-                    <div className="text-sm text-gray-700">¥{transportCost.toLocaleString()}</div>
-                  </div>
-                )}
-                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                  <div className="text-sm font-medium text-gray-700">合計</div>
-                  <div className={`text-2xl font-bold ${effectiveRate > 0 ? "text-brand-700" : "text-gray-400"}`}>
-                    {effectiveRate > 0 ? `¥${totalPay.toLocaleString()}` : "—"}
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {mySlots.sort().map((key) => (
-                    <span key={key} className="text-xs bg-gray-50 border border-gray-200 rounded px-2 py-0.5 text-gray-600">
-                      {slotLabels[key] || key}
-                    </span>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        );
-      })()}
-
       {/* ファシリテーターガイドライン */}
       <div className="mt-8 bg-white rounded-xl border border-gray-200 p-4">
         <h2 className="font-medium text-gray-800 mb-3">ファシリテーターガイドライン</h2>
@@ -1293,6 +1556,48 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
           ))}
         </div>
       </div>
+      {/* 給与不備 報告モーダル */}
+      {reportModalOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4"
+          onClick={() => !reportSending && setReportModalOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl w-full max-w-md p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-bold text-gray-800 mb-1">給与の不備を管理者に報告</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              {month}月分の給与について、金額や明細の間違い、確認したいことなどを記入してください。
+            </p>
+            <textarea
+              value={reportText}
+              onChange={(e) => setReportText(e.target.value)}
+              rows={5}
+              placeholder="例: 4/13の出退勤時刻が実際と違います。13:00-17:00で勤務しました。"
+              className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-1 focus:ring-brand-500"
+              disabled={reportSending}
+            />
+            <div className="flex justify-end gap-2 mt-3">
+              <button
+                onClick={() => setReportModalOpen(false)}
+                disabled={reportSending}
+                className="px-4 py-2 text-sm text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleSubmitPayrollReport}
+                disabled={reportSending || reportText.trim().length === 0}
+                className="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50"
+              >
+                {reportSending ? "送信中..." : "送信"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* AI-SATO-β Animation Modal */}
       {animationModal && (
         <div
@@ -1461,6 +1766,20 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                 const names = shift.assignmentNames?.[k] || [];
                 uids.forEach((uid, i) => { if (!facNameMap[uid]) facNameMap[uid] = names[i] || uid; });
               });
+              const imgSlotTimes = activeSlots.map((s) => s.time);
+              const imgIdx12 = imgSlotTimes.indexOf("12:00");
+              const imgIdx14 = imgSlotTimes.indexOf("14:30");
+              const imgHasBreak = imgIdx12 !== -1 && imgIdx14 !== -1 && imgIdx14 === imgIdx12 + 1;
+              if (imgHasBreak) {
+                dayFacUids.forEach((uid) => {
+                  const cells = facCells[uid];
+                  if (cells[imgIdx12].assigned && cells[imgIdx14].assigned) {
+                    let startIdx = imgIdx12;
+                    while (startIdx > 0 && !cells[startIdx].show) startIdx--;
+                    cells[startIdx].rowSpan += 1;
+                  }
+                });
+              }
               return (
                 <div key={day.date} style={{ marginBottom: 16 }}>
                   <div style={{ backgroundColor: "#f3f4f6", padding: "6px 12px", borderRadius: 6, marginBottom: 4, fontSize: 14, fontWeight: "bold", color: "#374151" }}>
@@ -1475,8 +1794,10 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                         const required = getRequiredFacilitators(slot.childCount);
                         const isShort = required > 0 && assignedCount < required;
                         return (
-                          <tr key={key}>
-                            <td style={{ border: "1px solid #e5e7eb", padding: "6px 10px", verticalAlign: "top", width: 110 }}>
+                          <Fragment key={key}>
+                          <tr>
+                            <td style={{ border: "1px solid #e5e7eb", padding: "6px 10px", verticalAlign: "top", width: 120 }}>
+                              <div style={{ fontSize: 10, color: "#9ca3af" }}>集合 {getAssemblyTime(slot.time)}</div>
                               <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                                 <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", backgroundColor: colors.bg, border: `2px solid ${colors.border}`, flexShrink: 0 }} />
                                 <span style={{ fontWeight: "bold", color: "#4b5563", fontSize: 13 }}>{slot.time}</span>
@@ -1511,6 +1832,19 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                               );
                             })}
                           </tr>
+                          {imgHasBreak && slotIdx === imgIdx12 && (
+                            <tr>
+                              <td style={{ border: "1px solid #e5e7eb", padding: "4px 10px", textAlign: "center", fontSize: 11, color: "#6b7280", fontWeight: 500, backgroundColor: "#f9fafb" }}>
+                                🍙 休憩<br />13:30〜14:15
+                              </td>
+                              {dayFacUids.map((uid) => {
+                                const spansBreak = facCells[uid][imgIdx12].assigned && facCells[uid][imgIdx14].assigned;
+                                if (spansBreak) return null;
+                                return <td key={uid} style={{ border: "1px solid #e5e7eb", backgroundColor: "#f9fafb" }} />;
+                              })}
+                            </tr>
+                          )}
+                          </Fragment>
                         );
                       })}
                     </tbody>

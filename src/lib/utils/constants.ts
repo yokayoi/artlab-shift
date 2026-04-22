@@ -24,14 +24,32 @@ export const STATUS_COLORS: Record<string, string> = {
 
 export const CLASS_DURATION_MINUTES = 70;
 
+// ===== 休憩時間（12:00〜14:30の間） =====
+export const BREAK_START = "13:30";
+export const BREAK_END = "14:15";
+export const BREAK_MINUTES = 45;
+
+/** 日ごとのスロットキーから休憩控除分(分)を返す。12:00と14:30の両方にアサインされている場合のみ45分控除 */
+export function getBreakDeduction(daySlotKeys: string[]): number {
+  const times = daySlotKeys.map((k) => k.split("_")[1]);
+  if (times.includes("12:00") && times.includes("14:30")) return BREAK_MINUTES;
+  return 0;
+}
+
 // アプリのリリース開始月（これより前の月は表示しない）
 export const LAUNCH_YEAR = 2026;
 export const LAUNCH_MONTH = 4; // 4月
 
 export const DEMO_MONTH_ID = "2026-03";
 
+// デモ月で時給未設定のユーザー（管理者など）向けの仮時給
+export const DEMO_HOURLY_RATE = 1500;
+
 export const TRAINING_MAX = 3;
 export const TRAINING_HOURLY_RATE = 1000;
+
+// 支払額がこの閾値以下の場合は翌月に繰り越してまとめて支払う
+export const PAYMENT_MIN_THRESHOLD = 3000;
 
 export const TIER_THRESHOLDS = [
   { tier: "platinum" as const, min: 300, label: "プラチナ", emoji: "💎", color: "bg-purple-100 text-purple-700 border-purple-300" },
@@ -50,6 +68,13 @@ export function getEffectiveRate(classCount: number, hourlyRate: number): number
   return hourlyRate;
 }
 
+/** 月を考慮した実効時給。デモ月で時給が未設定のユーザーには DEMO_HOURLY_RATE を使う */
+export function getEffectiveRateForMonth(monthId: string, classCount: number, hourlyRate: number): number {
+  const base = getEffectiveRate(classCount, hourlyRate);
+  if (monthId === DEMO_MONTH_ID && base === 0) return DEMO_HOURLY_RATE;
+  return base;
+}
+
 export function getTier(classCount: number) {
   for (const t of TIER_THRESHOLDS) {
     if (classCount >= t.min) return t;
@@ -63,6 +88,15 @@ export function getNextTier(classCount: number) {
     if (classCount < t.min) return { ...t, remaining: t.min - classCount };
   }
   return null;
+}
+
+// ===== 集合時間（10:30は30分前、他は10分前） =====
+
+export function getAssemblyTime(classTime: string): string {
+  const [h, m] = classTime.split(":").map(Number);
+  const offset = classTime === "10:30" ? 30 : 10;
+  const total = h * 60 + m - offset;
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 }
 
 // ===== 子ども人数 → 必要ファシリテーター数 =====
@@ -171,4 +205,60 @@ export function getSatokoEncouragement(name: string, classCount: number): string
     .replace(/{count}/g, String(classCount))
     .replace(/{remaining}/g, String(remaining))
     .replace(/{trainingLeft}/g, String(trainingLeft));
+}
+
+// ===== AI-SATO-β 給与画面「ありがとう」メッセージ（30パターン） =====
+
+const SATOKO_PAYROLL_THANKS = [
+  "{name}さん、今月も子どもたちと過ごしてくれてありがとう！",
+  "{name}さん、今月もお疲れさま！あなたの時間に感謝だよ。",
+  "{name}さん、毎回真剣に向き合ってくれて本当にありがとう！",
+  "{name}さん、あなたのクラスに救われた子、今月もきっといるよ。",
+  "{name}さん、子どもたちの笑顔、{name}さんが作ってるんだよ。ありがとう！",
+  "{name}さん、準備から片付けまで、いつもありがとう！",
+  "{name}さん、今月のクラス、しっかり見てたよ。ありがとう！",
+  "{name}さん、いてくれて本当に心強い！今月もありがとう！",
+  "{name}さん、一人ひとりに寄り添ってくれてありがとう。",
+  "{name}さん、あなたの言葉がけ、いつもあたたかいよ。感謝！",
+  "{name}さん、今月もラボを支えてくれてありがとう！",
+  "{name}さん、細やかな気配り、いつも見てるよ。ありがとう！",
+  "{name}さん、子どもたちの「できた！」を一緒に喜んでくれてありがとう。",
+  "{name}さん、アートの時間を特別にしてくれてありがとう。",
+  "{name}さん、忙しい中、毎回クラスに来てくれてありがとう！",
+  "{name}さん、チームに{name}さんがいてくれて嬉しいよ。ありがとう！",
+  "{name}さん、今月もたくさんの子どもたちに関わってくれてありがとう！",
+  "{name}さん、{name}さんのアイデアがクラスを彩ってるよ。感謝！",
+  "{name}さん、今月も{name}さんらしいクラスをありがとう！",
+  "{name}さん、{name}さんがいるだけで場が和むよ。ありがとう！",
+  "{name}さん、今月も最後までやり切ってくれてありがとう！",
+  "{name}さん、子どもたちの小さな変化に気づいてくれてありがとう。",
+  "{name}さん、アートを通じて大切なことを届けてくれてありがとう。",
+  "{name}さん、今月の歩み、子どもたちの心にちゃんと残ってるよ。",
+  "{name}さん、一緒に働けて嬉しい！今月もありがとう。",
+  "{name}さん、今月のクラスでの笑顔、素敵だったよ。",
+  "{name}さん、子どもたちのために走ってくれてありがとう！",
+  "{name}さん、{name}さんのおかげで今月も安心して子どもを迎えられたよ。",
+  "{name}さん、来月もまた一緒にアートの魔法を届けようね。今月もありがとう！",
+  "{name}さん、今月も本当にお疲れさま。ゆっくり休んでね！",
+];
+
+function hashSeed(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = (h * 31 + s.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
+
+/**
+ * 給与画面用の AI-SATO-β「ありがとう」メッセージを取得。
+ * seedKey を指定すると同じキーに対して同じメッセージが返る（月・ユーザー単位で安定表示したい時に）。
+ */
+export function getSatokoPayrollThanks(name: string, seedKey?: string): string {
+  const pool = SATOKO_PAYROLL_THANKS;
+  const idx =
+    seedKey !== undefined && seedKey !== ""
+      ? hashSeed(seedKey) % pool.length
+      : Math.floor(Math.random() * pool.length);
+  return pool[idx].replace(/{name}/g, name);
 }

@@ -13,6 +13,7 @@ const geist = Geist({
 export const metadata: Metadata = {
   title: "アートデザインラボ シフト管理",
   description: "ファシリテーター向けシフト管理アプリ",
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({

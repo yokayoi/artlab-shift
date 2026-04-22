@@ -43,25 +43,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(getFirebaseAuth(), async (user) => {
-      if (user) {
-        let profile = await getUser(user.uid);
-        if (!profile) {
-          await createUser({
-            uid: user.uid,
-            email: user.email || "",
-            displayName: user.displayName || "",
-            role: "facilitator",
+      try {
+        if (user) {
+          let profile = await getUser(user.uid);
+          if (!profile) {
+            await createUser({
+              uid: user.uid,
+              email: user.email || "",
+              displayName: user.displayName || "",
+              role: "facilitator",
+            });
+            profile = await getUser(user.uid);
+          }
+          setState({
+            user,
+            profile,
+            isAdmin: profile?.role === "admin",
+            loading: false,
           });
-          profile = await getUser(user.uid);
+        } else {
+          setState({ user: null, profile: null, isAdmin: false, loading: false });
         }
-        setState({
-          user,
-          profile,
-          isAdmin: profile?.role === "admin",
-          loading: false,
-        });
-      } else {
-        setState({ user: null, profile: null, isAdmin: false, loading: false });
+      } catch (err) {
+        console.error("Auth profile load failed:", err);
+        setState({ user: user, profile: null, isAdmin: false, loading: false });
       }
     });
     return () => unsubscribe();
