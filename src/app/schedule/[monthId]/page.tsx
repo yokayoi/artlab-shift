@@ -1143,6 +1143,73 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
             </div>
           )}
 
+          {/* 給与シミュレーション (collecting時 & ファシリが希望を入力した時のみ) */}
+          {schedule.status === "collecting" && profile && (() => {
+            const okSlots = Object.entries(myAvailability)
+              .filter(([, ok]) => ok)
+              .map(([key]) => key);
+            if (okSlots.length === 0) return null;
+            const classCount = profile.classCount || 0;
+            const effectiveRate = getEffectiveRateForMonth(monthId, classCount, profile.hourlyRate || 0);
+            if (effectiveRate === 0) return null;
+            const trainingRate = classCount >= 1 && classCount <= TRAINING_MAX;
+            const slotsByDayEst: Record<string, string[]> = {};
+            okSlots.forEach((k) => {
+              const d = getSlotDate(k);
+              if (!slotsByDayEst[d]) slotsByDayEst[d] = [];
+              slotsByDayEst[d].push(k);
+            });
+            const totalBreakMin = Object.values(slotsByDayEst).reduce(
+              (sum, keys) => sum + getBreakDeduction(keys),
+              0,
+            );
+            const scheduledMinutes =
+              okSlots.length * CLASS_DURATION_MINUTES - totalBreakMin;
+            const classPay = Math.round(effectiveRate * (scheduledMinutes / 60));
+            const transportCost = profile.transportCost || 0;
+            const totalPay = classPay + (okSlots.length > 0 ? transportCost : 0);
+
+            return (
+              <div className="bg-white rounded-xl border border-brand-300 p-4 mb-6">
+                <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="font-bold text-brand-700">{month}月の給与シミュレーション</h2>
+                    <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">
+                      希望シフト試算
+                    </span>
+                  </div>
+                  <span className="text-sm font-medium px-2 py-0.5 rounded bg-brand-50 text-brand-700">
+                    時給 ¥{effectiveRate.toLocaleString()}{trainingRate ? "（研修）" : ""}
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-500 mb-3 leading-relaxed">
+                  現在チェックを入れた希望シフトが全て採用された場合の見込み額です。<br />
+                  実際の支払額はシフト確定後に変動します。
+                </p>
+                <div className="space-y-1 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">
+                      {okSlots.length}コマ（{scheduledMinutes}分{totalBreakMin > 0 ? ` 休憩−${totalBreakMin}分` : ""}）
+                    </span>
+                    <span className="text-gray-800">¥{classPay.toLocaleString()}</span>
+                  </div>
+                  {transportCost > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600">交通費</span>
+                      <span className="text-gray-800">¥{transportCost.toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="border-t border-gray-100 mt-3 pt-3 flex items-center justify-between">
+                  <span className="font-bold text-gray-700">合計（試算）</span>
+                  <span className="text-2xl font-bold text-brand-700">
+                    ¥{totalPay.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Schedule Grid (collecting時のみ表示) */}
           {!isPublished && <div className="space-y-4">
             {schedule.days.map((day) => {
