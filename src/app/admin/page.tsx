@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   getSchedule,
   getMonthAvailabilities,
+  getAllUsers,
   updateScheduleStatus,
   deleteSchedule,
   updateSchedule,
@@ -46,12 +47,20 @@ export default function AdminPage() {
       const now = new Date();
       const entries: MonthEntry[] = [];
 
+      // 管理者UIDセット（回答数カウントから除外するため）
+      const allUsers = await getAllUsers();
+      const adminUids = new Set(
+        allUsers.filter((u) => u.role === "admin").map((u) => u.uid),
+      );
+
       // デモ月
       const demoSchedule = await getSchedule(DEMO_MONTH_ID);
       let demoResponseCount = 0;
       if (demoSchedule && demoSchedule.status !== "draft") {
         const avails = await getMonthAvailabilities(DEMO_MONTH_ID);
-        demoResponseCount = avails.length;
+        demoResponseCount = avails.filter(
+          (a) => !adminUids.has(a.facilitatorId),
+        ).length;
       }
       entries.push({
         monthId: DEMO_MONTH_ID,
@@ -68,7 +77,9 @@ export default function AdminPage() {
         let responseCount = 0;
         if (schedule && schedule.status !== "draft") {
           const avails = await getMonthAvailabilities(monthId);
-          responseCount = avails.length;
+          responseCount = avails.filter(
+            (a) => !adminUids.has(a.facilitatorId),
+          ).length;
         }
         entries.push({
           monthId,
