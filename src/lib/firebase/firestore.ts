@@ -9,6 +9,7 @@ import {
   query,
   where,
   orderBy,
+  limit,
   addDoc,
   getDocs,
   Timestamp,
@@ -30,6 +31,7 @@ import {
   PayrollConfirmation,
   PayrollCarryOver,
   PayrollReport,
+  PayrollAcknowledgment,
 } from "../types";
 
 // ===== Users =====
@@ -105,6 +107,37 @@ export async function unlinkLineAccount(uid: string) {
   });
 }
 
+// ===== Settings =====
+
+const SETTINGS_DOC_ID = "general";
+
+export async function getDefaultMonthId(): Promise<string | null> {
+  const snap = await getDoc(doc(getFirebaseDb(), "settings", SETTINGS_DOC_ID));
+  if (!snap.exists()) return null;
+  const data = snap.data() as { defaultMonthId?: string };
+  return data.defaultMonthId ?? null;
+}
+
+export async function setDefaultMonthId(monthId: string) {
+  await setDoc(
+    doc(getFirebaseDb(), "settings", SETTINGS_DOC_ID),
+    { defaultMonthId: monthId, updatedAt: Timestamp.now() },
+    { merge: true },
+  );
+}
+
+export async function getLatestSchedule(): Promise<MonthSchedule | null> {
+  const q = query(
+    collection(getFirebaseDb(), "schedules"),
+    orderBy("createdAt", "desc"),
+    limit(1),
+  );
+  const snap = await getDocs(q);
+  if (snap.empty) return null;
+  const d = snap.docs[0];
+  return { id: d.id, ...d.data() } as MonthSchedule;
+}
+
 // ===== Schedules =====
 
 export async function getSchedule(monthId: string): Promise<MonthSchedule | null> {
@@ -121,6 +154,8 @@ export async function createSchedule(monthId: string, days: DaySchedule[], creat
     createdAt: now,
     updatedAt: now,
   });
+  // 新規作成時にデフォルト表示月を自動でこの月に更新
+  await setDefaultMonthId(monthId);
 }
 
 export async function updateSchedule(monthId: string, data: Partial<MonthSchedule>) {
@@ -382,6 +417,49 @@ export async function getMonthPayrollConfirmations(monthId: string): Promise<Pay
 export async function cancelPayrollConfirmation(monthId: string, facilitatorId: string) {
   const docId = `${monthId}_${facilitatorId}`;
   await deleteDoc(doc(getFirebaseDb(), "payrollConfirmations", docId));
+}
+
+// ===== Payroll Acknowledgment（ファシリテーター本人の「確認しました」） =====
+
+export async function acknowledgePayroll(
+  monthId: string,
+  facilitatorId: string,
+  facilitatorName: string
+): Promise<PayrollAcknowledgment> {
+  const docId = `${monthId}_${facilitatorId}`;
+  const data: PayrollAcknowledgment = {
+    monthId,
+    facilitatorId,
+    facilitatorName,
+    acknowledgedAt: Timestamp.now(),
+  };
+  await setDoc(doc(getFirebaseDb(), "payrollAcknowledgments", docId), data);
+  return data;
+}
+
+export async function getPayrollAcknowledgment(
+  monthId: string,
+  facilitatorId: string
+): Promise<PayrollAcknowledgment | null> {
+  const docId = `${monthId}_${facilitatorId}`;
+  const snap = await getDoc(doc(getFirebaseDb(), "payrollAcknowledgments", docId));
+  return snap.exists() ? (snap.data() as PayrollAcknowledgment) : null;
+}
+
+export async function getMonthPayrollAcknowledgments(
+  monthId: string
+): Promise<PayrollAcknowledgment[]> {
+  const q = query(
+    collection(getFirebaseDb(), "payrollAcknowledgments"),
+    where("monthId", "==", monthId)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => d.data() as PayrollAcknowledgment);
+}
+
+export async function cancelPayrollAcknowledgment(monthId: string, facilitatorId: string) {
+  const docId = `${monthId}_${facilitatorId}`;
+  await deleteDoc(doc(getFirebaseDb(), "payrollAcknowledgments", docId));
 }
 
 // ===== Payroll Carry Over（先月からの繰り越し支払額） =====

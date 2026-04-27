@@ -4,7 +4,15 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
-import { getSchedule, getMonthAvailabilities, updateScheduleStatus, deleteSchedule, updateSchedule } from "@/lib/firebase/firestore";
+import {
+  getSchedule,
+  getMonthAvailabilities,
+  updateScheduleStatus,
+  deleteSchedule,
+  updateSchedule,
+  getDefaultMonthId,
+  setDefaultMonthId,
+} from "@/lib/firebase/firestore";
 import { MonthSchedule } from "@/lib/types";
 import { formatMonthId, formatDeadline, parseMonthId } from "@/lib/utils/dateCalc";
 import { STATUS_LABELS, STATUS_COLORS, LAUNCH_YEAR, LAUNCH_MONTH, DEMO_MONTH_ID } from "@/lib/utils/constants";
@@ -22,6 +30,8 @@ export default function AdminPage() {
   const [months, setMonths] = useState<MonthEntry[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [savingDeadline, setSavingDeadline] = useState<string | null>(null);
+  const [defaultMonthId, setDefaultMonthIdState] = useState<string | null>(null);
+  const [savingDefault, setSavingDefault] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) {
@@ -68,6 +78,8 @@ export default function AdminPage() {
         });
       }
       setMonths(entries);
+      const def = await getDefaultMonthId();
+      setDefaultMonthIdState(def);
       setDataLoading(false);
       } catch (err) {
         console.error("Admin data load failed:", err);
@@ -75,6 +87,16 @@ export default function AdminPage() {
       }
     })();
   }, [user, isAdmin]);
+
+  const handleSetDefault = async (monthId: string) => {
+    setSavingDefault(monthId);
+    try {
+      await setDefaultMonthId(monthId);
+      setDefaultMonthIdState(monthId);
+    } finally {
+      setSavingDefault(null);
+    }
+  };
 
   const handleRevertToDraft = async (monthId: string) => {
     if (!confirm("下書きに戻すと、ファシリテーターからの回答が無効になる可能性があります。よろしいですか？")) return;
@@ -155,7 +177,27 @@ export default function AdminPage() {
           <div key={entry.monthId} className="bg-white rounded-xl border border-gray-200 p-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="font-medium text-gray-800">{entry.label}</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="font-medium text-gray-800">{entry.label}</h2>
+                  {entry.schedule && defaultMonthId === entry.monthId && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-300">
+                      ★ デフォルト表示
+                    </span>
+                  )}
+                  {entry.schedule &&
+                    defaultMonthId !== entry.monthId &&
+                    entry.monthId !== DEMO_MONTH_ID && (
+                      <button
+                        onClick={() => handleSetDefault(entry.monthId)}
+                        disabled={savingDefault === entry.monthId}
+                        className="text-[10px] text-gray-500 hover:text-emerald-600 underline decoration-dotted"
+                      >
+                        {savingDefault === entry.monthId
+                          ? "設定中..."
+                          : "デフォルトに設定"}
+                      </button>
+                    )}
+                </div>
                 {entry.schedule ? (
                   <div className="mt-1 space-y-1">
                     <div className="flex items-center gap-2">

@@ -124,6 +124,13 @@ export interface PayrollCarryOver {
   updatedBy: string;
 }
 
+export interface PayrollAcknowledgment {
+  monthId: string;
+  facilitatorId: string;
+  facilitatorName: string;
+  acknowledgedAt: Timestamp;
+}
+
 export type PayrollReportStatus = "open" | "resolved";
 
 export interface PayrollReport {

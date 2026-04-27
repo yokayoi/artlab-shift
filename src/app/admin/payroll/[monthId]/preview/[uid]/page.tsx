@@ -10,6 +10,7 @@ import {
   getAttendance,
   getPayrollConfirmation,
   getPayrollCarryOver,
+  getPayrollAcknowledgment,
 } from "@/lib/firebase/firestore";
 import {
   MonthSchedule,
@@ -18,6 +19,7 @@ import {
   Attendance,
   PayrollConfirmation,
   PayrollCarryOver,
+  PayrollAcknowledgment,
 } from "@/lib/types";
 import {
   parseMonthId,
@@ -50,6 +52,7 @@ export default function PayrollFacilitatorPreviewPage({
   const [attendance, setAttendance] = useState<Attendance | null>(null);
   const [payrollConf, setPayrollConf] = useState<PayrollConfirmation | null>(null);
   const [carryOver, setCarryOver] = useState<PayrollCarryOver | null>(null);
+  const [payrollAck, setPayrollAck] = useState<PayrollAcknowledgment | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
@@ -67,14 +70,16 @@ export default function PayrollFacilitatorPreviewPage({
     setSchedule(sched);
     setShift(shiftData);
     try {
-      const [att, conf, carry] = await Promise.all([
+      const [att, conf, carry, ack] = await Promise.all([
         getAttendance(monthId, uid),
         getPayrollConfirmation(monthId, uid),
         getPayrollCarryOver(monthId, uid),
+        getPayrollAcknowledgment(monthId, uid),
       ]);
       setAttendance(att);
       setPayrollConf(conf);
       setCarryOver(carry);
+      setPayrollAck(ack);
     } catch {
       // ignore
     }
@@ -207,11 +212,20 @@ export default function PayrollFacilitatorPreviewPage({
         }`}
       >
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <h2 className="font-bold text-brand-700">{month}月の給与</h2>
             {payrollConf && (
               <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">
                 確定済み
+              </span>
+            )}
+            {payrollAck ? (
+              <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-medium">
+                本人確認済み（{payrollAck.acknowledgedAt.toDate().toLocaleDateString("ja-JP")}）
+              </span>
+            ) : (
+              <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-medium">
+                本人未確認
               </span>
             )}
           </div>

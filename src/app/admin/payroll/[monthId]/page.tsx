@@ -3,8 +3,8 @@
 import { useEffect, useState, use, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { getSchedule, getShift, getAllUsers, getMonthAttendances, adminEditAttendance, confirmPayroll, getMonthPayrollConfirmations, cancelPayrollConfirmation, getMonthPayrollCarryOvers, setPayrollCarryOver, deletePayrollCarryOver, getMonthPayrollReports, resolvePayrollReport, reopenPayrollReport } from "@/lib/firebase/firestore";
-import { MonthSchedule, ShiftAssignment, UserProfile, Attendance, PayrollConfirmation, PayrollCarryOver, PayrollReport } from "@/lib/types";
+import { getSchedule, getShift, getAllUsers, getMonthAttendances, adminEditAttendance, confirmPayroll, getMonthPayrollConfirmations, cancelPayrollConfirmation, getMonthPayrollCarryOvers, setPayrollCarryOver, deletePayrollCarryOver, getMonthPayrollReports, resolvePayrollReport, reopenPayrollReport, getMonthPayrollAcknowledgments } from "@/lib/firebase/firestore";
+import { MonthSchedule, ShiftAssignment, UserProfile, Attendance, PayrollConfirmation, PayrollCarryOver, PayrollReport, PayrollAcknowledgment } from "@/lib/types";
 import { parseMonthId, getSlotKey, formatDateShort, getSlotDate, timestampToTimeString, getNextMonthId } from "@/lib/utils/dateCalc";
 import { CLASS_DURATION_MINUTES, getEffectiveRateForMonth, DEMO_MONTH_ID, getBreakDeduction, PAYMENT_MIN_THRESHOLD } from "@/lib/utils/constants";
 import { Timestamp } from "firebase/firestore";
@@ -54,6 +54,7 @@ export default function PayrollPage({ params }: { params: Promise<{ monthId: str
   const [carryOvers, setCarryOvers] = useState<PayrollCarryOver[]>([]);
   const [carryOverInputs, setCarryOverInputs] = useState<Record<string, string>>({});
   const [reports, setReports] = useState<PayrollReport[]>([]);
+  const [acknowledgments, setAcknowledgments] = useState<PayrollAcknowledgment[]>([]);
   const [resolvingReport, setResolvingReport] = useState<string | null>(null);
   const [responseInputs, setResponseInputs] = useState<Record<string, string>>({});
   const [dataLoading, setDataLoading] = useState(true);
@@ -73,16 +74,18 @@ export default function PayrollPage({ params }: { params: Promise<{ monthId: str
       getAllUsers(),
     ]);
     try {
-      const [attData, confData, carryData, reportsData] = await Promise.all([
+      const [attData, confData, carryData, reportsData, ackData] = await Promise.all([
         getMonthAttendances(monthId),
         getMonthPayrollConfirmations(monthId),
         getMonthPayrollCarryOvers(monthId),
         getMonthPayrollReports(monthId),
+        getMonthPayrollAcknowledgments(monthId),
       ]);
       setAttendances(attData);
       setConfirmations(confData);
       setCarryOvers(carryData);
       setReports(reportsData);
+      setAcknowledgments(ackData);
       const inputs: Record<string, string> = {};
       carryData.forEach((c) => {
         inputs[c.facilitatorId] = c.amount > 0 ? String(c.amount) : "";
@@ -299,6 +302,8 @@ export default function PayrollPage({ params }: { params: Promise<{ monthId: str
   // Build confirmation map
   const confirmationMap = new Map<string, PayrollConfirmation>();
   confirmations.forEach((c) => confirmationMap.set(c.facilitatorId, c));
+  const acknowledgmentMap = new Map<string, PayrollAcknowledgment>();
+  acknowledgments.forEach((a) => acknowledgmentMap.set(a.facilitatorId, a));
 
   // Build reports map (facilitatorId → reports[])
   const reportsByUid = new Map<string, PayrollReport[]>();
@@ -499,6 +504,7 @@ export default function PayrollPage({ params }: { params: Promise<{ monthId: str
           const thisMonthPay = hasAnyAttendance ? p.actualTotalPay : p.totalPay;
           const conf = confirmationMap.get(p.uid);
           const isConfirmed = !!conf;
+          const ack = acknowledgmentMap.get(p.uid);
           const isProcessing = confirming === p.uid;
           const carryInputValue = carryOverInputs[p.uid] ?? "";
           const isSavingCarry = savingCarry === p.uid;
@@ -516,6 +522,13 @@ export default function PayrollPage({ params }: { params: Promise<{ monthId: str
                     )}
                     {isConfirmed && (
                       <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">確定済み</span>
+                    )}
+                    {ack ? (
+                      <span className="text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 rounded font-medium">
+                        ✓ 本人確認済み（{ack.acknowledgedAt.toDate().toLocaleDateString("ja-JP")}）
+                      </span>
+                    ) : (
+                      <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">本人未確認</span>
                     )}
                   </div>
                   {p.slotCount > 0 && (

@@ -3,8 +3,8 @@
 import { useEffect, useState, useRef, use, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { getSchedule, getAvailability, saveAvailability, getShift, saveShift, getActiveAnnouncements, getCollectingSchedules, getAttendance, checkIn as firestoreCheckIn, checkOut as firestoreCheckOut, editMyAttendanceTime, resetDayAttendance, getMonthAvailabilities, getAllUsers, updateSchedule, getPayrollConfirmation, createPayrollReport, getFacilitatorPayrollReports } from "@/lib/firebase/firestore";
-import { MonthSchedule, Availability, ShiftAssignment, Announcement, Attendance, UserProfile, PayrollConfirmation, PayrollReport } from "@/lib/types";
+import { getSchedule, getAvailability, saveAvailability, getShift, saveShift, getActiveAnnouncements, getCollectingSchedules, getAttendance, checkIn as firestoreCheckIn, checkOut as firestoreCheckOut, editMyAttendanceTime, resetDayAttendance, getMonthAvailabilities, getAllUsers, updateSchedule, getPayrollConfirmation, createPayrollReport, getFacilitatorPayrollReports, getPayrollAcknowledgment, acknowledgePayroll } from "@/lib/firebase/firestore";
+import { MonthSchedule, Availability, ShiftAssignment, Announcement, Attendance, UserProfile, PayrollConfirmation, PayrollReport, PayrollAcknowledgment } from "@/lib/types";
 import { getSlotKey, parseMonthId, formatMonthId, formatDateShort, formatDeadline, isDeadlinePassed, getSlotDate, getTodayString, timestampToTimeString, datetimeLocalToTimestamp, timestampToDatetimeLocal } from "@/lib/utils/dateCalc";
 import { CLASS_TYPE_COLORS, STATUS_LABELS, CLASS_DURATION_MINUTES, TRAINING_MAX, LAUNCH_YEAR, LAUNCH_MONTH, DEMO_MONTH_ID, DEMO_HOURLY_RATE, getTier, getNextTier, isTraining, getEffectiveRate, getEffectiveRateForMonth, getRequiredFacilitators, getAssemblyTime, BREAK_MINUTES, getBreakDeduction, getSatokoPayrollThanks } from "@/lib/utils/constants";
 import html2canvas from "html2canvas";
@@ -43,6 +43,8 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
   const [attendance, setAttendance] = useState<Attendance | null>(null);
   const [payrollConf, setPayrollConf] = useState<PayrollConfirmation | null>(null);
   const [myPayrollReports, setMyPayrollReports] = useState<PayrollReport[]>([]);
+  const [payrollAck, setPayrollAck] = useState<PayrollAcknowledgment | null>(null);
+  const [ackSending, setAckSending] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [reportText, setReportText] = useState("");
   const [reportSending, setReportSending] = useState(false);
@@ -107,14 +109,16 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
 
       setShift(shiftData);
       try {
-        const [attendanceData, confData, reportsData] = await Promise.all([
+        const [attendanceData, confData, reportsData, ackData] = await Promise.all([
           getAttendance(monthId, user.uid),
           getPayrollConfirmation(monthId, user.uid),
           getFacilitatorPayrollReports(monthId, user.uid),
+          getPayrollAcknowledgment(monthId, user.uid),
         ]);
         setAttendance(attendanceData);
         setPayrollConf(confData);
         setMyPayrollReports(reportsData);
+        setPayrollAck(ackData);
       } catch {
         // collections may not have rules deployed yet
       }
@@ -176,6 +180,22 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
         ? `${name}さん、今日もよろしくね！`
         : `${name}さん、おつかれさま！`;
     }
+  };
+
+  const handleAcknowledgePayroll = async () => {
+    if (!user || !profile) return;
+    if (ackSending) return;
+    if (!confirm(`${month}月の給与を確認しました、で送信しますか？`)) return;
+    setAckSending(true);
+    try {
+      const name = profile.nickname || profile.displayName;
+      const ack = await acknowledgePayroll(monthId, user.uid, name);
+      setPayrollAck(ack);
+    } catch (err) {
+      console.error(err);
+      alert("送信に失敗しました");
+    }
+    setAckSending(false);
   };
 
   const handleSubmitPayrollReport = async () => {
@@ -685,14 +705,29 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
                 </div>
               );
             })()}
-            {/* 不備を報告ボタン */}
-            <div className="mt-3 pt-3 border-t border-gray-100 flex justify-end">
-              <button
-                onClick={() => setReportModalOpen(true)}
-                className="text-xs text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-3 py-1.5 rounded-lg"
-              >
-                給与に不備があれば管理者に報告
-              </button>
+            {/* 確認しました / 不備を報告ボタン */}
+            <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
+              {payrollAck ? (
+                <div className="w-full bg-green-600 text-white text-center font-bold text-sm px-4 py-3 rounded-xl shadow-sm">
+                  ✓ 確認済み（{payrollAck.acknowledgedAt.toDate().toLocaleDateString("ja-JP")}）
+                </div>
+              ) : (
+                <button
+                  onClick={handleAcknowledgePayroll}
+                  disabled={ackSending}
+                  className="w-full bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-bold text-sm px-4 py-3 rounded-xl shadow-sm disabled:opacity-50 transition-colors"
+                >
+                  {ackSending ? "送信中…" : "給与を確認しました"}
+                </button>
+              )}
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setReportModalOpen(true)}
+                  className="text-xs text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-3 py-1.5 rounded-lg"
+                >
+                  給与に不備があれば管理者に報告
+                </button>
+              </div>
             </div>
           </div>
         );
