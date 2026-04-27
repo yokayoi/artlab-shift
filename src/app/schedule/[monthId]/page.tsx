@@ -443,8 +443,8 @@ export default function FacilitatorSchedulePage({ params }: { params: Promise<{ 
         </button>
       </div>
 
-      {/* 今月の給与 */}
-      {profile && (() => {
+      {/* 今月の給与（シフト確定後のみ表示。回答受付中はシミュレーションを別途表示） */}
+      {profile && isPublished && (() => {
         const mySlots = shift && schedule
           ? Object.entries(shift.assignments)
               .filter(([, uids]) => uids.includes(user?.uid || ""))
