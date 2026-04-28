@@ -315,7 +315,7 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
                     </td>
                   ))}
                 </tr>,
-                <tr key={`${sk.key}-note`} className={isLastOfDate ? "border-b-2 border-gray-400" : "border-b border-gray-100"}>
+                <tr key={`${sk.key}-note`} className={isLastOfDate ? "border-b-2 border-gray-300" : "border-b border-gray-100"}>
                   <td colSpan={4 + availabilities.length} className="px-2 py-1">
                     <input
                       type="text"
