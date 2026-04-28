@@ -207,12 +207,55 @@ export default function ProfilePage() {
   const tier = getTier(classCount);
   const nextTier = getNextTier(classCount);
 
+  const steps: { key: string; label: string; done: boolean }[] = [
+    { key: "nickname", label: "ニックネーム", done: !!profile.nickname?.trim() },
+    { key: "photo", label: "プロフィール写真", done: !!profile.photoURL },
+    { key: "intro", label: "紹介テキスト確定", done: profile.facilitatorIntro?.status === "confirmed" },
+    { key: "line", label: "LINE連携", done: !!profile.lineUserId },
+    { key: "bank", label: "口座情報", done: !!profile.bankAccount?.bankName && !!profile.bankAccount?.accountNumber },
+  ];
+  const doneCount = steps.filter((s) => s.done).length;
+  const totalCount = steps.length;
+  const remaining = totalCount - doneCount;
+  const progressPercent = (doneCount / totalCount) * 100;
+  const allDone = doneCount === totalCount;
+
   return (
     <div className="max-w-md mx-auto px-4 py-6">
       <button onClick={() => router.back()} className="text-sm text-brand-600 mb-4 inline-block">
         ← 戻る
       </button>
-      <h1 className="text-xl font-bold text-gray-800 mb-6">プロフィール編集</h1>
+      <h1 className="text-xl font-bold text-gray-800 mb-4">プロフィール編集</h1>
+
+      {/* 登録ステップ */}
+      <div className={`mb-6 rounded-xl border p-4 ${allDone ? "bg-green-50 border-green-200" : "bg-brand-50 border-brand-200"}`}>
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-sm font-medium text-gray-800">
+            {allDone ? "🎉 すべての登録が完了しました！" : `あと ${remaining} 項目で登録完了`}
+          </div>
+          <div className="text-xs text-gray-600">{doneCount}/{totalCount}</div>
+        </div>
+        <div className="w-full h-1.5 bg-white/70 rounded-full overflow-hidden mb-3">
+          <div
+            className={`h-full rounded-full transition-all ${allDone ? "bg-green-500" : "bg-brand-500"}`}
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+        <ul className="space-y-1">
+          {steps.map((s) => (
+            <li key={s.key} className="flex items-center gap-2 text-xs">
+              <span
+                className={`inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold ${
+                  s.done ? "bg-green-500 text-white" : "bg-white border border-gray-300 text-gray-400"
+                }`}
+              >
+                {s.done ? "✓" : ""}
+              </span>
+              <span className={s.done ? "text-gray-500 line-through" : "text-gray-800"}>{s.label}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
 
       {/* Avatar */}
       <div className="flex flex-col items-center mb-8">
