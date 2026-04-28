@@ -203,6 +203,11 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
     dateRowSpans[date] = count * 2;
   });
   const dateFirstRow = new Set<string>();
+  // Last slot key per date (for thick divider)
+  const dateLastSlotKey: Record<string, string> = {};
+  slotKeys.forEach((sk) => {
+    dateLastSlotKey[sk.date] = sk.key;
+  });
 
   return (
     <div className="max-w-[1440px] mx-auto px-4 py-6">
@@ -249,6 +254,7 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
               const required = getRequiredFacilitators(childCounts[sk.key]);
               const isFirst = !dateFirstRow.has(sk.date);
               if (isFirst) dateFirstRow.add(sk.date);
+              const isLastOfDate = dateLastSlotKey[sk.date] === sk.key;
               return [
                 <tr key={sk.key} className="border-b border-gray-50">
                   {isFirst && (
@@ -309,7 +315,7 @@ export default function AdminResponsesPage({ params }: { params: Promise<{ month
                     </td>
                   ))}
                 </tr>,
-                <tr key={`${sk.key}-note`} className="border-b border-gray-100">
+                <tr key={`${sk.key}-note`} className={isLastOfDate ? "border-b-2 border-gray-400" : "border-b border-gray-100"}>
                   <td colSpan={4 + availabilities.length} className="px-2 py-1">
                     <input
                       type="text"
