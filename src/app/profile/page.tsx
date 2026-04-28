@@ -278,8 +278,150 @@ export default function ProfilePage() {
         {saving ? "保存中..." : saved ? "保存しました" : "保存する"}
       </button>
 
-      {/* LINE連携 */}
+      {/* ファシリテーター紹介用テキスト */}
       <div className="mt-8 bg-white rounded-xl border border-gray-200 p-4">
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="font-medium text-gray-800">ファシリテーター紹介用テキスト</h2>
+          {profile.facilitatorIntro?.status === "confirmed" && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-700 border border-green-300">
+              確定済み
+            </span>
+          )}
+          {profile.facilitatorIntro?.status === "draft" && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-yellow-100 text-yellow-700 border border-yellow-300">
+              下書き
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-gray-500 mb-4">掲示板で今日のファシリを案内する用の紹介テキストです。</p>
+
+        {!introEditing && profile.facilitatorIntro ? (
+          <div className="space-y-3">
+            <div>
+              <div className="text-xs text-gray-500">お名前</div>
+              <div className="text-sm text-gray-800 whitespace-pre-wrap">{profile.facilitatorIntro.name}</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">得意、好きなこと</div>
+              <div className="text-sm text-gray-800 whitespace-pre-wrap">{profile.facilitatorIntro.strengths}</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">こんな経験あります！</div>
+              <div className="text-sm text-gray-800 whitespace-pre-wrap">{profile.facilitatorIntro.experience}</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">ゆめ</div>
+              <div className="text-sm text-gray-800 whitespace-pre-wrap">{profile.facilitatorIntro.dream}</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">みんなにメッセージ！</div>
+              <div className="text-sm text-gray-800 whitespace-pre-wrap">{profile.facilitatorIntro.message}</div>
+            </div>
+            <button
+              onClick={() => setIntroEditing(true)}
+              className="w-full mt-2 py-2 rounded-lg text-sm font-medium text-brand-700 bg-white border border-brand-300 hover:bg-brand-50 transition-colors"
+            >
+              編集する
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {!profile.facilitatorIntro && !introEditing && (
+              <button
+                onClick={() => setIntroEditing(true)}
+                className="w-full py-3 rounded-xl font-medium text-white bg-brand-600 hover:bg-brand-700 active:bg-brand-800 transition-colors"
+              >
+                紹介テキストを入力する
+              </button>
+            )}
+            {introEditing && (
+              <>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">お名前 <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    value={introName}
+                    onChange={(e) => setIntroName(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">得意、好きなこと <span className="text-red-500">*</span></label>
+                  <p className="text-[11px] text-gray-400 mb-1">例：工作、文章を書くこと、ピアノ、ヨガ</p>
+                  <textarea
+                    value={introStrengths}
+                    onChange={(e) => setIntroStrengths(e.target.value)}
+                    rows={3}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">こんな経験あります！ <span className="text-red-500">*</span></label>
+                  <p className="text-[11px] text-gray-400 mb-1">例：デザイナー、映像ディレクター、臨床美術士</p>
+                  <textarea
+                    value={introExperience}
+                    onChange={(e) => setIntroExperience(e.target.value)}
+                    rows={3}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">ゆめ <span className="text-red-500">*</span></label>
+                  <p className="text-[11px] text-gray-400 mb-1">例：いつかアートデザインラボのひろーい場所を作って（お庭、カフェ付き）みんなで遊びたい。</p>
+                  <textarea
+                    value={introDream}
+                    onChange={(e) => setIntroDream(e.target.value)}
+                    rows={3}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">みんなにメッセージ！ <span className="text-red-500">*</span></label>
+                  <p className="text-[11px] text-gray-400 mb-1">例：苦手なことがあっても大丈夫。「好き」をとことん突き詰めましょう。</p>
+                  <textarea
+                    value={introMessage}
+                    onChange={(e) => setIntroMessage(e.target.value)}
+                    rows={3}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  />
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <button
+                    onClick={handleSaveIntroDraft}
+                    disabled={introSavingDraft || introConfirming}
+                    className="flex-1 py-3 rounded-xl text-sm font-medium text-brand-700 bg-white border border-brand-300 hover:bg-brand-50 disabled:bg-gray-100 transition-colors"
+                  >
+                    {introSavingDraft ? "保存中..." : "下書き保存"}
+                  </button>
+                  <button
+                    onClick={handleConfirmIntro}
+                    disabled={introSavingDraft || introConfirming}
+                    className="flex-1 py-3 rounded-xl text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 active:bg-brand-800 disabled:bg-gray-300 transition-colors"
+                  >
+                    {introConfirming ? "送信中..." : "確定して管理者に通知"}
+                  </button>
+                </div>
+                {profile.facilitatorIntro && (
+                  <button
+                    onClick={() => setIntroEditing(false)}
+                    className="w-full text-xs text-gray-500 underline mt-1"
+                  >
+                    キャンセル
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        )}
+        {introNotice && (
+          <p className={`mt-3 text-xs ${introNotice.type === "success" ? "text-green-600" : "text-red-600"}`}>
+            {introNotice.text}
+          </p>
+        )}
+      </div>
+
+      {/* LINE連携 */}
+      <div className="mt-4 bg-white rounded-xl border border-gray-200 p-4">
         <h2 className="font-medium text-gray-800 mb-3">LINE連携</h2>
         <p className="text-xs text-gray-500 mb-4">
           LINEアカウントを連携すると、シフト確定通知やリマインダーをLINEで受け取れます。
@@ -462,148 +604,6 @@ export default function ProfilePage() {
         >
           {bankSaving ? "保存中..." : bankSaved ? "保存しました" : "口座情報を保存"}
         </button>
-      </div>
-
-      {/* ファシリテーター紹介用テキスト */}
-      <div className="mt-4 bg-white rounded-xl border border-gray-200 p-4">
-        <div className="flex items-center justify-between mb-1">
-          <h2 className="font-medium text-gray-800">ファシリテーター紹介用テキスト</h2>
-          {profile.facilitatorIntro?.status === "confirmed" && (
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-700 border border-green-300">
-              確定済み
-            </span>
-          )}
-          {profile.facilitatorIntro?.status === "draft" && (
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-yellow-100 text-yellow-700 border border-yellow-300">
-              下書き
-            </span>
-          )}
-        </div>
-        <p className="text-xs text-gray-500 mb-4">掲示板で今日のファシリを案内する用の紹介テキストです。</p>
-
-        {!introEditing && profile.facilitatorIntro ? (
-          <div className="space-y-3">
-            <div>
-              <div className="text-xs text-gray-500">お名前</div>
-              <div className="text-sm text-gray-800 whitespace-pre-wrap">{profile.facilitatorIntro.name}</div>
-            </div>
-            <div>
-              <div className="text-xs text-gray-500">得意、好きなこと</div>
-              <div className="text-sm text-gray-800 whitespace-pre-wrap">{profile.facilitatorIntro.strengths}</div>
-            </div>
-            <div>
-              <div className="text-xs text-gray-500">こんな経験あります！</div>
-              <div className="text-sm text-gray-800 whitespace-pre-wrap">{profile.facilitatorIntro.experience}</div>
-            </div>
-            <div>
-              <div className="text-xs text-gray-500">ゆめ</div>
-              <div className="text-sm text-gray-800 whitespace-pre-wrap">{profile.facilitatorIntro.dream}</div>
-            </div>
-            <div>
-              <div className="text-xs text-gray-500">みんなにメッセージ！</div>
-              <div className="text-sm text-gray-800 whitespace-pre-wrap">{profile.facilitatorIntro.message}</div>
-            </div>
-            <button
-              onClick={() => setIntroEditing(true)}
-              className="w-full mt-2 py-2 rounded-lg text-sm font-medium text-brand-700 bg-white border border-brand-300 hover:bg-brand-50 transition-colors"
-            >
-              編集する
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {!profile.facilitatorIntro && !introEditing && (
-              <button
-                onClick={() => setIntroEditing(true)}
-                className="w-full py-3 rounded-xl font-medium text-white bg-brand-600 hover:bg-brand-700 active:bg-brand-800 transition-colors"
-              >
-                紹介テキストを入力する
-              </button>
-            )}
-            {introEditing && (
-              <>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">お名前 <span className="text-red-500">*</span></label>
-                  <input
-                    type="text"
-                    value={introName}
-                    onChange={(e) => setIntroName(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">得意、好きなこと <span className="text-red-500">*</span></label>
-                  <p className="text-[11px] text-gray-400 mb-1">例：工作、文章を書くこと、ピアノ、ヨガ</p>
-                  <textarea
-                    value={introStrengths}
-                    onChange={(e) => setIntroStrengths(e.target.value)}
-                    rows={3}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">こんな経験あります！ <span className="text-red-500">*</span></label>
-                  <p className="text-[11px] text-gray-400 mb-1">例：デザイナー、映像ディレクター、臨床美術士</p>
-                  <textarea
-                    value={introExperience}
-                    onChange={(e) => setIntroExperience(e.target.value)}
-                    rows={3}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">ゆめ <span className="text-red-500">*</span></label>
-                  <p className="text-[11px] text-gray-400 mb-1">例：いつかアートデザインラボのひろーい場所を作って（お庭、カフェ付き）みんなで遊びたい。</p>
-                  <textarea
-                    value={introDream}
-                    onChange={(e) => setIntroDream(e.target.value)}
-                    rows={3}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">みんなにメッセージ！ <span className="text-red-500">*</span></label>
-                  <p className="text-[11px] text-gray-400 mb-1">例：苦手なことがあっても大丈夫。「好き」をとことん突き詰めましょう。</p>
-                  <textarea
-                    value={introMessage}
-                    onChange={(e) => setIntroMessage(e.target.value)}
-                    rows={3}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-                  />
-                </div>
-                <div className="flex gap-2 pt-2">
-                  <button
-                    onClick={handleSaveIntroDraft}
-                    disabled={introSavingDraft || introConfirming}
-                    className="flex-1 py-3 rounded-xl text-sm font-medium text-brand-700 bg-white border border-brand-300 hover:bg-brand-50 disabled:bg-gray-100 transition-colors"
-                  >
-                    {introSavingDraft ? "保存中..." : "下書き保存"}
-                  </button>
-                  <button
-                    onClick={handleConfirmIntro}
-                    disabled={introSavingDraft || introConfirming}
-                    className="flex-1 py-3 rounded-xl text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 active:bg-brand-800 disabled:bg-gray-300 transition-colors"
-                  >
-                    {introConfirming ? "送信中..." : "確定して管理者に通知"}
-                  </button>
-                </div>
-                {profile.facilitatorIntro && (
-                  <button
-                    onClick={() => setIntroEditing(false)}
-                    className="w-full text-xs text-gray-500 underline mt-1"
-                  >
-                    キャンセル
-                  </button>
-                )}
-              </>
-            )}
-          </div>
-        )}
-        {introNotice && (
-          <p className={`mt-3 text-xs ${introNotice.type === "success" ? "text-green-600" : "text-red-600"}`}>
-            {introNotice.text}
-          </p>
-        )}
       </div>
 
     </div>
