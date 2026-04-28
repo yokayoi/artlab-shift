@@ -113,5 +113,20 @@ service cloud.firestore {
     match /sendLogs/{docId} {
       allow read, write: if isNewsletterAdmin();
     }
+
+    // ========== 塾生日程管理アプリ（β: LIFF認証のみ） ==========
+    // 本番運用では Firebase Custom Token / LINE userId 検証ルールに引き締める予定
+    match /student_households/{docId} {
+      allow read, write: if true;
+    }
+    match /student_children/{docId} {
+      allow read, write: if true;
+    }
+    match /student_enrollments/{docId} {
+      allow read, write: if true;
+    }
+    match /student_chat_messages/{docId} {
+      allow read, write: if true;
+    }
   }
 }
