@@ -32,6 +32,7 @@ import {
   PayrollCarryOver,
   PayrollReport,
   PayrollAcknowledgment,
+  FacilitatorIntro,
 } from "../types";
 
 // ===== Users =====
@@ -393,6 +394,32 @@ export async function adminEditAttendance(
 
 export async function updateUserBankAccount(uid: string, bankAccount: BankAccount) {
   await updateDoc(doc(getFirebaseDb(), "users", uid), { bankAccount, updatedAt: Timestamp.now() });
+}
+
+// ===== Facilitator Intro（掲示板用紹介テキスト） =====
+
+export type FacilitatorIntroInput = Pick<
+  FacilitatorIntro,
+  "name" | "strengths" | "experience" | "dream" | "message"
+>;
+
+export async function saveFacilitatorIntro(
+  uid: string,
+  data: FacilitatorIntroInput,
+  status: "draft" | "confirmed"
+) {
+  const now = Timestamp.now();
+  const intro: FacilitatorIntro = {
+    ...data,
+    status,
+    updatedAt: now,
+    ...(status === "confirmed" ? { confirmedAt: now } : {}),
+  };
+  await updateDoc(doc(getFirebaseDb(), "users", uid), {
+    facilitatorIntro: intro,
+    updatedAt: now,
+  });
+  return intro;
 }
 
 // ===== Payroll Confirmation =====

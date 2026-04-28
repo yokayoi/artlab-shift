@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { updateUserProfile, updateUserBankAccount } from "@/lib/firebase/firestore";
+import { updateUserProfile, updateUserBankAccount, saveFacilitatorIntro } from "@/lib/firebase/firestore";
 import { uploadProfileImage } from "@/lib/firebase/storage";
 import { getTier, getNextTier, isTraining, TRAINING_MAX, TRAINING_HOURLY_RATE, getEffectiveRate } from "@/lib/utils/constants";
 import { BankAccount } from "@/lib/types";
@@ -26,6 +26,17 @@ export default function ProfilePage() {
   const [bankSaved, setBankSaved] = useState(false);
   const [lineUnlinking, setLineUnlinking] = useState(false);
   const [lineMessage, setLineMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // 掲示板用 紹介テキスト
+  const [introEditing, setIntroEditing] = useState(false);
+  const [introName, setIntroName] = useState("");
+  const [introStrengths, setIntroStrengths] = useState("");
+  const [introExperience, setIntroExperience] = useState("");
+  const [introDream, setIntroDream] = useState("");
+  const [introMessage, setIntroMessage] = useState("");
+  const [introSavingDraft, setIntroSavingDraft] = useState(false);
+  const [introConfirming, setIntroConfirming] = useState(false);
+  const [introNotice, setIntroNotice] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
     if (!loading && !user) router.push("/login");
@@ -56,6 +67,12 @@ export default function ProfilePage() {
         setAccountNumber(profile.bankAccount.accountNumber);
         setAccountHolder(profile.bankAccount.accountHolder);
       }
+      const intro = profile.facilitatorIntro;
+      setIntroName(intro?.name ?? profile.nickname ?? profile.displayName ?? "");
+      setIntroStrengths(intro?.strengths ?? "");
+      setIntroExperience(intro?.experience ?? "");
+      setIntroDream(intro?.dream ?? "");
+      setIntroMessage(intro?.message ?? "");
     }
   }, [profile]);
 
@@ -96,6 +113,76 @@ export default function ProfilePage() {
       setLineMessage({ type: "error", text: "解除に失敗しました" });
     }
     setLineUnlinking(false);
+  };
+
+  const introInput = () => ({
+    name: introName.trim(),
+    strengths: introStrengths.trim(),
+    experience: introExperience.trim(),
+    dream: introDream.trim(),
+    message: introMessage.trim(),
+  });
+
+  const validateIntro = () => {
+    const v = introInput();
+    if (!v.name) return "お名前を入力してください";
+    if (!v.strengths) return "得意・好きなことを入力してください";
+    if (!v.experience) return "こんな経験を入力してください";
+    if (!v.dream) return "ゆめを入力してください";
+    if (!v.message) return "みんなにメッセージを入力してください";
+    return null;
+  };
+
+  const handleSaveIntroDraft = async () => {
+    if (!user) return;
+    const err = validateIntro();
+    if (err) {
+      setIntroNotice({ type: "error", text: err });
+      return;
+    }
+    setIntroSavingDraft(true);
+    try {
+      await saveFacilitatorIntro(user.uid, introInput(), "draft");
+      await refreshProfile();
+      setIntroEditing(false);
+      setIntroNotice({ type: "success", text: "下書きを保存しました" });
+    } catch {
+      setIntroNotice({ type: "error", text: "保存に失敗しました" });
+    }
+    setIntroSavingDraft(false);
+    setTimeout(() => setIntroNotice(null), 3000);
+  };
+
+  const handleConfirmIntro = async () => {
+    if (!user) return;
+    const err = validateIntro();
+    if (err) {
+      setIntroNotice({ type: "error", text: err });
+      return;
+    }
+    if (!confirm("内容を確定して管理者に通知しますか？")) return;
+    setIntroConfirming(true);
+    try {
+      await saveFacilitatorIntro(user.uid, introInput(), "confirmed");
+      await refreshProfile();
+      setIntroEditing(false);
+
+      const { getAuth } = await import("firebase/auth");
+      const idToken = await getAuth().currentUser?.getIdToken();
+      const res = await fetch("/api/facilitator-intro/notify", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
+      if (res.ok) {
+        setIntroNotice({ type: "success", text: "確定して管理者に通知しました" });
+      } else {
+        setIntroNotice({ type: "success", text: "確定しました（管理者通知の送信に失敗）" });
+      }
+    } catch {
+      setIntroNotice({ type: "error", text: "確定に失敗しました" });
+    }
+    setIntroConfirming(false);
+    setTimeout(() => setIntroNotice(null), 4000);
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -375,6 +462,148 @@ export default function ProfilePage() {
         >
           {bankSaving ? "保存中..." : bankSaved ? "保存しました" : "口座情報を保存"}
         </button>
+      </div>
+
+      {/* ファシリテーター紹介用テキスト */}
+      <div className="mt-4 bg-white rounded-xl border border-gray-200 p-4">
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="font-medium text-gray-800">ファシリテーター紹介用テキスト</h2>
+          {profile.facilitatorIntro?.status === "confirmed" && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-700 border border-green-300">
+              確定済み
+            </span>
+          )}
+          {profile.facilitatorIntro?.status === "draft" && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-yellow-100 text-yellow-700 border border-yellow-300">
+              下書き
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-gray-500 mb-4">掲示板で今日のファシリを案内する用の紹介テキストです。</p>
+
+        {!introEditing && profile.facilitatorIntro ? (
+          <div className="space-y-3">
+            <div>
+              <div className="text-xs text-gray-500">お名前</div>
+              <div className="text-sm text-gray-800 whitespace-pre-wrap">{profile.facilitatorIntro.name}</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">得意、好きなこと</div>
+              <div className="text-sm text-gray-800 whitespace-pre-wrap">{profile.facilitatorIntro.strengths}</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">こんな経験あります！</div>
+              <div className="text-sm text-gray-800 whitespace-pre-wrap">{profile.facilitatorIntro.experience}</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">ゆめ</div>
+              <div className="text-sm text-gray-800 whitespace-pre-wrap">{profile.facilitatorIntro.dream}</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">みんなにメッセージ！</div>
+              <div className="text-sm text-gray-800 whitespace-pre-wrap">{profile.facilitatorIntro.message}</div>
+            </div>
+            <button
+              onClick={() => setIntroEditing(true)}
+              className="w-full mt-2 py-2 rounded-lg text-sm font-medium text-brand-700 bg-white border border-brand-300 hover:bg-brand-50 transition-colors"
+            >
+              編集する
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {!profile.facilitatorIntro && !introEditing && (
+              <button
+                onClick={() => setIntroEditing(true)}
+                className="w-full py-3 rounded-xl font-medium text-white bg-brand-600 hover:bg-brand-700 active:bg-brand-800 transition-colors"
+              >
+                紹介テキストを入力する
+              </button>
+            )}
+            {introEditing && (
+              <>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">お名前 <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    value={introName}
+                    onChange={(e) => setIntroName(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">得意、好きなこと <span className="text-red-500">*</span></label>
+                  <p className="text-[11px] text-gray-400 mb-1">例：工作、文章を書くこと、ピアノ、ヨガ</p>
+                  <textarea
+                    value={introStrengths}
+                    onChange={(e) => setIntroStrengths(e.target.value)}
+                    rows={3}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">こんな経験あります！ <span className="text-red-500">*</span></label>
+                  <p className="text-[11px] text-gray-400 mb-1">例：デザイナー、映像ディレクター、臨床美術士</p>
+                  <textarea
+                    value={introExperience}
+                    onChange={(e) => setIntroExperience(e.target.value)}
+                    rows={3}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">ゆめ <span className="text-red-500">*</span></label>
+                  <p className="text-[11px] text-gray-400 mb-1">例：いつかアートデザインラボのひろーい場所を作って（お庭、カフェ付き）みんなで遊びたい。</p>
+                  <textarea
+                    value={introDream}
+                    onChange={(e) => setIntroDream(e.target.value)}
+                    rows={3}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">みんなにメッセージ！ <span className="text-red-500">*</span></label>
+                  <p className="text-[11px] text-gray-400 mb-1">例：苦手なことがあっても大丈夫。「好き」をとことん突き詰めましょう。</p>
+                  <textarea
+                    value={introMessage}
+                    onChange={(e) => setIntroMessage(e.target.value)}
+                    rows={3}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  />
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <button
+                    onClick={handleSaveIntroDraft}
+                    disabled={introSavingDraft || introConfirming}
+                    className="flex-1 py-3 rounded-xl text-sm font-medium text-brand-700 bg-white border border-brand-300 hover:bg-brand-50 disabled:bg-gray-100 transition-colors"
+                  >
+                    {introSavingDraft ? "保存中..." : "下書き保存"}
+                  </button>
+                  <button
+                    onClick={handleConfirmIntro}
+                    disabled={introSavingDraft || introConfirming}
+                    className="flex-1 py-3 rounded-xl text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 active:bg-brand-800 disabled:bg-gray-300 transition-colors"
+                  >
+                    {introConfirming ? "送信中..." : "確定して管理者に通知"}
+                  </button>
+                </div>
+                {profile.facilitatorIntro && (
+                  <button
+                    onClick={() => setIntroEditing(false)}
+                    className="w-full text-xs text-gray-500 underline mt-1"
+                  >
+                    キャンセル
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        )}
+        {introNotice && (
+          <p className={`mt-3 text-xs ${introNotice.type === "success" ? "text-green-600" : "text-red-600"}`}>
+            {introNotice.text}
+          </p>
+        )}
       </div>
 
     </div>

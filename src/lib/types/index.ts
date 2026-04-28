@@ -12,6 +12,17 @@ export interface BankAccount {
   accountHolder: string;
 }
 
+export interface FacilitatorIntro {
+  name: string;
+  strengths: string;
+  experience: string;
+  dream: string;
+  message: string;
+  status: "draft" | "confirmed";
+  updatedAt: Timestamp;
+  confirmedAt?: Timestamp;
+}
+
 export interface UserProfile {
   uid: string;
   email: string;
@@ -25,6 +36,7 @@ export interface UserProfile {
   bankAccount?: BankAccount;
   lineUserId?: string;
   lineDisplayName?: string;
+  facilitatorIntro?: FacilitatorIntro;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
