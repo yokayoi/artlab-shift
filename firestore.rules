@@ -128,5 +128,8 @@ service cloud.firestore {
     match /student_chat_messages/{docId} {
       allow read, write: if true;
     }
+    match /student_slot_settings/{docId} {
+      allow read, write: if true;
+    }
   }
 }
